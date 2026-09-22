@@ -82,54 +82,56 @@ export function TopBar({ onSelectResultado }: TopBarProps) {
   }
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-background px-4">
+    <header className="grid h-14 shrink-0 grid-cols-[auto_1fr_auto] items-center gap-4 border-b border-border bg-background px-4">
       <span className="shrink-0 text-base font-semibold tracking-tight">Ponto Certo</span>
 
-      <div ref={containerRef} className="relative w-full max-w-md">
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(e) => handleQueryChange(e.target.value)}
-          onFocus={() => resultados.length > 0 && setAberto(true)}
-          placeholder="Buscar setor censitário, município ou UF..."
-          className="pl-8"
-        />
+      <div className="flex justify-center">
+        <div ref={containerRef} className="relative w-full max-w-md">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => handleQueryChange(e.target.value)}
+            onFocus={() => resultados.length > 0 && setAberto(true)}
+            placeholder="Buscar setor censitário, município ou UF..."
+            className="pl-8"
+          />
 
-        {aberto && (query.trim().length >= MIN_QUERY_LENGTH) && (
-          <div className="absolute top-full left-0 z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-lg border border-border bg-popover shadow-md">
-            {loading && (
-              <div className="px-3 py-2 text-sm text-muted-foreground">Buscando...</div>
-            )}
-            {!loading && erro && (
-              <div className="px-3 py-2 text-sm text-destructive">{erro}</div>
-            )}
-            {!loading && !erro && resultados.length === 0 && (
-              <div className="px-3 py-2 text-sm text-muted-foreground">
-                Nenhum setor encontrado.
-              </div>
-            )}
-            {!loading &&
-              !erro &&
-              resultados.map((setor) => (
-                <button
-                  key={setor.cdSetor}
-                  type="button"
-                  onClick={() => handleSelect(setor)}
-                  className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-                >
-                  <span className="font-medium">
-                    {setor.nmMunicipio} — {setor.uf}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    Setor {setor.cdSetor} · {setor.regiao}
-                  </span>
-                </button>
-              ))}
-          </div>
-        )}
+          {aberto && (query.trim().length >= MIN_QUERY_LENGTH) && (
+            <div className="absolute top-full left-0 z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-lg border border-border bg-popover shadow-md">
+              {loading && (
+                <div className="px-3 py-2 text-sm text-muted-foreground">Buscando...</div>
+              )}
+              {!loading && erro && (
+                <div className="px-3 py-2 text-sm text-destructive">{erro}</div>
+              )}
+              {!loading && !erro && resultados.length === 0 && (
+                <div className="px-3 py-2 text-sm text-muted-foreground">
+                  Nenhum setor encontrado.
+                </div>
+              )}
+              {!loading &&
+                !erro &&
+                resultados.map((setor) => (
+                  <button
+                    key={setor.cdSetor}
+                    type="button"
+                    onClick={() => handleSelect(setor)}
+                    className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <span className="font-medium">
+                      {setor.nmMunicipio} — {setor.uf}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Setor {setor.cdSetor} · {setor.regiao}
+                    </span>
+                  </button>
+                ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="ml-auto">
+      <div className="justify-self-end">
         <DropdownMenu>
           <DropdownMenuTrigger>
             <Avatar>

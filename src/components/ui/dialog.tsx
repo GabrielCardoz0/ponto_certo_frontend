@@ -49,7 +49,7 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close-button"
-            className="absolute top-4 right-4 rounded-sm opacity-70 outline-hidden transition-opacity hover:opacity-100 focus-visible:opacity-100"
+            className="absolute top-4 right-4 cursor-pointer rounded-sm opacity-70 outline-hidden transition-opacity hover:opacity-100 focus-visible:opacity-100"
           >
             <XIcon className="size-4" />
             <span className="sr-only">Fechar</span>
