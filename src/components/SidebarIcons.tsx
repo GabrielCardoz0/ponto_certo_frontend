@@ -1,4 +1,4 @@
-import { SlidersHorizontal, Layers, GitCompareArrows, FileText } from "lucide-react";
+import { SlidersHorizontal, Layers, GitCompareArrows } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -14,8 +14,6 @@ interface SidebarIconsProps {
   onChangeRendaOpacidade: (opacidade: number) => void;
   podeComparar: boolean;
   onIniciarComparacao: () => void;
-  podeGerarRelatorio: boolean;
-  onAbrirRelatorio: () => void;
 }
 
 export function SidebarIcons({
@@ -27,8 +25,6 @@ export function SidebarIcons({
   onChangeRendaOpacidade,
   podeComparar,
   onIniciarComparacao,
-  podeGerarRelatorio,
-  onAbrirRelatorio,
 }: SidebarIconsProps) {
   return (
     <nav className="flex w-12 shrink-0 flex-col items-center gap-1 border-r border-border bg-background py-3">
@@ -96,24 +92,6 @@ export function SidebarIcons({
         </TooltipTrigger>
         <TooltipContent side="right">
           {podeComparar ? "Comparar com outro ponto" : "Selecione um setor no mapa primeiro"}
-        </TooltipContent>
-      </Tooltip>
-
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon"
-              disabled={!podeGerarRelatorio}
-              onClick={onAbrirRelatorio}
-            />
-          }
-        >
-          <FileText />
-        </TooltipTrigger>
-        <TooltipContent side="right">
-          {podeGerarRelatorio ? "Gerar relatório" : "Selecione um setor no mapa primeiro"}
         </TooltipContent>
       </Tooltip>
     </nav>

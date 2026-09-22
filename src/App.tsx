@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { MapView, type FlyTarget, type RendaCampo } from "@/components/Map";
 import { TopBar } from "@/components/TopBar";
 import { SidebarIcons } from "@/components/SidebarIcons";
-import { DetailPanel, type DetailPanelHandle } from "@/components/DetailPanel";
+import { DetailPanel } from "@/components/DetailPanel";
 import { getSetor } from "@/lib/api";
 import type { Localizacao, Setor, SetorResumo } from "@/types/setor";
 
@@ -19,7 +19,6 @@ export function App() {
   const [rendaOpacidade, setRendaOpacidade] = useState(0.6);
   const [flyTarget, setFlyTarget] = useState<FlyTarget | null>(null);
 
-  const detailPanelRef = useRef<DetailPanelHandle>(null);
   const flyNonce = useRef(0);
 
   async function selecionarSetor(cdSetor: string, localizacao?: Localizacao) {
@@ -89,8 +88,6 @@ export function App() {
           onChangeRendaOpacidade={setRendaOpacidade}
           podeComparar={Boolean(setorA) && !setorB}
           onIniciarComparacao={handleIniciarComparacao}
-          podeGerarRelatorio={Boolean(setorA)}
-          onAbrirRelatorio={() => detailPanelRef.current?.abrirRelatorio()}
         />
         <main className="relative min-w-0 flex-1">
           <MapView
@@ -104,7 +101,6 @@ export function App() {
         </main>
         <DetailPanel
           key={setorA?.cdSetor ?? "empty"}
-          ref={detailPanelRef}
           setorA={setorA}
           setorB={setorB}
           carregando={carregando}
