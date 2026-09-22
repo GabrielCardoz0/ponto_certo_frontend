@@ -91,6 +91,10 @@ export function getSetor(cdSetor: string) {
   return apiFetch<Setor>(`/setores/${cdSetor}`);
 }
 
+export function localizarSetorPorPonto(lat: number, lng: number) {
+  return apiFetch<Setor>(`/setores/localizar?lat=${lat}&lng=${lng}`);
+}
+
 export function getPois(cdSetor: string, raio: number, categoria?: string) {
   const params = new URLSearchParams({ raio: String(raio) });
   if (categoria) params.set("categoria", categoria);

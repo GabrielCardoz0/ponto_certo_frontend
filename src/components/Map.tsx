@@ -362,7 +362,7 @@ export function MapView({
           </div>
         </div>
         <div className="mt-1.5 text-muted-foreground">
-          Fonte: dados públicos IBGE, enriquecidos com modelagem própria auditável
+          Fonte: dados públicos IBGE e metodologia proprietária auditável
         </div>
       </div>
     </div>

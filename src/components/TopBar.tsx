@@ -10,7 +10,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { buscarSetores } from "@/lib/api";
+import { localizarSetorPorPonto } from "@/lib/api";
+import { buscarEnderecos, type SugestaoEndereco } from "@/lib/geocoding";
 import { useTheme } from "@/components/theme-provider";
 import type { SetorResumo } from "@/types/setor";
 
@@ -25,7 +26,7 @@ export function TopBar({ onSelectResultado }: TopBarProps) {
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
   const [query, setQuery] = useState("");
-  const [resultados, setResultados] = useState<SetorResumo[]>([]);
+  const [resultados, setResultados] = useState<SugestaoEndereco[]>([]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aberto, setAberto] = useState(false);
@@ -41,13 +42,13 @@ export function TopBar({ onSelectResultado }: TopBarProps) {
     setLoading(true);
     setErro(null);
     const timer = setTimeout(() => {
-      buscarSetores(trimmed)
+      buscarEnderecos(trimmed)
         .then((data) => {
           setResultados(data);
           setAberto(true);
         })
         .catch(() => {
-          setErro("Erro ao buscar setores.");
+          setErro("Erro ao buscar endereços.");
           setResultados([]);
         })
         .finally(() => setLoading(false));
@@ -66,10 +67,26 @@ export function TopBar({ onSelectResultado }: TopBarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  function handleSelect(setor: SetorResumo) {
-    onSelectResultado(setor);
-    setQuery(`${setor.nmMunicipio} — ${setor.cdSetor}`);
+  async function handleSelect(sugestao: SugestaoEndereco) {
+    setQuery(sugestao.texto);
     setAberto(false);
+    setErro(null);
+    try {
+      const setor = await localizarSetorPorPonto(sugestao.localizacao.lat, sugestao.localizacao.lng);
+      const resumo: SetorResumo = {
+        cdSetor: setor.cdSetor,
+        censoDate: setor.censoDate,
+        cdMunicipio: setor.cdMunicipio,
+        nmMunicipio: setor.nmMunicipio,
+        uf: setor.uf,
+        regiao: setor.regiao,
+        localizacao: sugestao.localizacao,
+      };
+      onSelectResultado(resumo);
+    } catch {
+      setErro("Não foi possível localizar um setor censitário para este endereço.");
+      setAberto(true);
+    }
   }
 
   function handleQueryChange(value: string) {
@@ -92,7 +109,7 @@ export function TopBar({ onSelectResultado }: TopBarProps) {
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
             onFocus={() => resultados.length > 0 && setAberto(true)}
-            placeholder="Buscar setor censitário, município ou UF..."
+            placeholder="Buscar endereço, bairro ou cidade..."
             className="pl-8"
           />
 
@@ -106,24 +123,19 @@ export function TopBar({ onSelectResultado }: TopBarProps) {
               )}
               {!loading && !erro && resultados.length === 0 && (
                 <div className="px-3 py-2 text-sm text-muted-foreground">
-                  Nenhum setor encontrado.
+                  Nenhum endereço encontrado.
                 </div>
               )}
               {!loading &&
                 !erro &&
-                resultados.map((setor) => (
+                resultados.map((sugestao) => (
                   <button
-                    key={setor.cdSetor}
+                    key={sugestao.id}
                     type="button"
-                    onClick={() => handleSelect(setor)}
-                    className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => void handleSelect(sugestao)}
+                    className="flex w-full cursor-pointer items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
                   >
-                    <span className="font-medium">
-                      {setor.nmMunicipio} — {setor.uf}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Setor {setor.cdSetor} · {setor.regiao}
-                    </span>
+                    <span className="font-medium">{sugestao.texto}</span>
                   </button>
                 ))}
             </div>
