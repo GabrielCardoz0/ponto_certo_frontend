@@ -89,6 +89,7 @@ interface MapViewProps {
   flyTarget: FlyTarget | null;
   camadaVisivel: boolean;
   rendaOpacidade: number;
+  setoresSelecionados: string[];
 }
 
 function rendaPropFor(campo: RendaCampo) {
@@ -113,6 +114,7 @@ export function MapView({
   flyTarget,
   camadaVisivel,
   rendaOpacidade,
+  setoresSelecionados,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -224,8 +226,6 @@ export function MapView({
           if (cdSetorRaw === undefined || cdSetorRaw === null) return;
           const cdSetor = String(cdSetorRaw);
 
-          map?.setFilter(HIGHLIGHT_LAYER_ID, ["==", ["get", PROP_CD_SETOR], cdSetor]);
-
           const { lng, lat } = e.lngLat;
           onSelectSetorRef.current(cdSetor, { lng, lat });
         });
@@ -269,6 +269,17 @@ export function MapView({
     if (!map || !flyTarget) return;
     map.flyTo({ center: [flyTarget.lng, flyTarget.lat], zoom: 14, essential: true });
   }, [flyTarget]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.getLayer(HIGHLIGHT_LAYER_ID)) return;
+    map.setFilter(
+      HIGHLIGHT_LAYER_ID,
+      setoresSelecionados.length === 0
+        ? ["==", ["get", PROP_CD_SETOR], "__none__"]
+        : ["in", ["get", PROP_CD_SETOR], ["literal", setoresSelecionados]]
+    );
+  }, [setoresSelecionados]);
 
   useEffect(() => {
     const map = mapRef.current;

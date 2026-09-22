@@ -12,6 +12,7 @@ export function App() {
   const [setorA, setSetorA] = useState<Setor | null>(null);
   const [setorB, setSetorB] = useState<Setor | null>(null);
   const [selecionando, setSelecionando] = useState<Selecionando>("a");
+  const [carregando, setCarregando] = useState(false);
 
   const [rendaCampo, setRendaCampo] = useState<RendaCampo>("rendaMedia");
   const [camadaVisivel, setCamadaVisivel] = useState(true);
@@ -22,6 +23,7 @@ export function App() {
   const flyNonce = useRef(0);
 
   async function selecionarSetor(cdSetor: string, localizacao?: Localizacao) {
+    setCarregando(true);
     try {
       const setor = await getSetor(cdSetor);
       if (selecionando === "b" && setorA) {
@@ -37,6 +39,8 @@ export function App() {
       }
     } catch {
       // Falha ao buscar o setor selecionado — mantém a seleção anterior.
+    } finally {
+      setCarregando(false);
     }
   }
 
@@ -53,10 +57,24 @@ export function App() {
     setSelecionando("b");
   }
 
+  function handleCancelarComparacao() {
+    setSelecionando("a");
+  }
+
   function handleRemoverB() {
     setSetorB(null);
     setSelecionando("a");
   }
+
+  function handleFecharPainel() {
+    setSetorA(null);
+    setSetorB(null);
+    setSelecionando("a");
+  }
+
+  const setoresSelecionados = [setorA?.cdSetor, setorB?.cdSetor].filter(
+    (cdSetor): cdSetor is string => Boolean(cdSetor)
+  );
 
   return (
     <div className="flex h-svh w-screen flex-col overflow-hidden">
@@ -81,20 +99,20 @@ export function App() {
             flyTarget={flyTarget}
             camadaVisivel={camadaVisivel}
             rendaOpacidade={rendaOpacidade}
+            setoresSelecionados={setoresSelecionados}
           />
-          {selecionando === "b" && (
-            <div className="pointer-events-none absolute top-3 left-1/2 z-10 -translate-x-1/2 rounded-md bg-foreground px-3 py-1.5 text-xs text-background shadow-sm">
-              Clique no mapa (ou busque) para escolher o ponto B
-            </div>
-          )}
         </main>
         <DetailPanel
           key={setorA?.cdSetor ?? "empty"}
           ref={detailPanelRef}
           setorA={setorA}
           setorB={setorB}
+          carregando={carregando}
+          aguardandoPontoB={selecionando === "b" && !setorB}
           onIniciarComparacao={handleIniciarComparacao}
+          onCancelarComparacao={handleCancelarComparacao}
           onRemoverB={handleRemoverB}
+          onFechar={handleFecharPainel}
         />
       </div>
     </div>
