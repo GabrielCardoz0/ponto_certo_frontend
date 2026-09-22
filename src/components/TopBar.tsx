@@ -111,6 +111,11 @@ export function TopBar({ onSelectResultado }: TopBarProps) {
             onFocus={() => resultados.length > 0 && setAberto(true)}
             placeholder="Buscar endereço, bairro ou cidade..."
             className="pl-8"
+            name="busca-endereco-ponto-certo"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
           />
 
           {aberto && (query.trim().length >= MIN_QUERY_LENGTH) && (
