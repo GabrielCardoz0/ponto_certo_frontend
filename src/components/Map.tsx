@@ -3,6 +3,9 @@ import * as maplibregl from "maplibre-gl";
 import type { MapLayerMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
+import { AlertCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatMoeda } from "@/lib/format";
 import type { Localizacao } from "@/types/setor";
 
 /**
@@ -74,6 +77,22 @@ const ABEP_CLASSES: Array<{ label: string; min: number | null; cor: string }> = 
 
 /** Cor para setores sem dado de renda (propriedade ausente no tile). */
 const SEM_DADOS_COR = "#cccccc";
+
+/** Índices de ABEP_CLASSES em ordem decrescente de renda (A1 primeiro, DE por último). */
+const ABEP_CLASSES_INDICES_DESC = ABEP_CLASSES.map((_, index) => index).reverse();
+
+/** Recorte de renda completo de uma classe, para exibir no painel de recortes da legenda. */
+function faixaRendaTooltip(index: number): string {
+  const atual = ABEP_CLASSES[index];
+  const proxima = ABEP_CLASSES[index + 1];
+  if (atual.min === null) {
+    return `até ${formatMoeda(proxima.min)}`;
+  }
+  if (!proxima) {
+    return `a partir de ${formatMoeda(atual.min)}`;
+  }
+  return `${formatMoeda(atual.min)} até ${formatMoeda(proxima.min)}`;
+}
 
 export type RendaCampo = "rendaMedia" | "rendaMediana";
 
@@ -295,25 +314,56 @@ export function MapView({
       <div ref={containerRef} className="h-full w-full" />
 
       <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-md border border-border bg-background/90 px-3 py-2 text-xs shadow-sm backdrop-blur">
-        <div className="mb-1.5 font-medium">
+        <div className="mb-1.5 flex items-center gap-1 font-medium">
           Classe econômica · renda {rendaCampo === "rendaMedia" ? "média" : "mediana"}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  className="pointer-events-auto inline-flex cursor-pointer text-muted-foreground hover:text-foreground"
+                />
+              }
+            >
+              <AlertCircle className="size-3.5" />
+              <span className="sr-only">Ver recortes de renda por classe</span>
+            </TooltipTrigger>
+            <TooltipContent side="top" align="start" className="w-60 flex-col items-stretch gap-1 p-3">
+              <div className="mb-0.5 font-medium">Recortes de renda por classe</div>
+              {ABEP_CLASSES_INDICES_DESC.map((index) => {
+                const classe = ABEP_CLASSES[index];
+                return (
+                  <div key={classe.label} className="flex items-center gap-2">
+                    <span
+                      className="size-2 shrink-0 rounded-sm"
+                      style={{ backgroundColor: classe.cor }}
+                    />
+                    <span className="w-6 shrink-0 font-medium">{classe.label}</span>
+                    <span className="text-background/70">{faixaRendaTooltip(index)}</span>
+                  </div>
+                );
+              })}
+            </TooltipContent>
+          </Tooltip>
         </div>
         <div className="flex items-center gap-2">
-          {ABEP_CLASSES.map((classe) => (
-            <div key={classe.label} className="flex items-center gap-1">
-              <span
-                className="size-2.5 rounded-sm"
-                style={{ backgroundColor: classe.cor }}
-              />
-              <span className="text-muted-foreground">{classe.label}</span>
-            </div>
-          ))}
+          {ABEP_CLASSES_INDICES_DESC.map((index) => {
+            const classe = ABEP_CLASSES[index];
+            return (
+              <div key={classe.label} className="flex items-center gap-1">
+                <span className="size-2.5 rounded-sm" style={{ backgroundColor: classe.cor }} />
+                <span className="text-muted-foreground">{classe.label}</span>
+              </div>
+            );
+          })}
           <div className="flex items-center gap-1">
             <span className="size-2.5 rounded-sm" style={{ backgroundColor: SEM_DADOS_COR }} />
             <span className="text-muted-foreground">Sem dados</span>
           </div>
         </div>
-        <div className="mt-1.5 text-muted-foreground">Fonte: IBGE, Censo 2022</div>
+        <div className="mt-1.5 text-muted-foreground">
+          Fonte: dados públicos IBGE, enriquecidos com modelagem própria auditável
+        </div>
       </div>
     </div>
   );
