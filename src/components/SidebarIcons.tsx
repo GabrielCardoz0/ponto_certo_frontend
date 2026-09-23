@@ -12,8 +12,9 @@ interface SidebarIconsProps {
   onToggleCamada: () => void;
   rendaOpacidade: number;
   onChangeRendaOpacidade: (opacidade: number) => void;
-  podeComparar: boolean;
-  onIniciarComparacao: () => void;
+  podeAdicionar: boolean;
+  motivoNaoPodeAdicionar: string;
+  onAdicionarRegiao: () => void;
 }
 
 export function SidebarIcons({
@@ -23,8 +24,9 @@ export function SidebarIcons({
   onToggleCamada,
   rendaOpacidade,
   onChangeRendaOpacidade,
-  podeComparar,
-  onIniciarComparacao,
+  podeAdicionar,
+  motivoNaoPodeAdicionar,
+  onAdicionarRegiao,
 }: SidebarIconsProps) {
   return (
     <nav className="flex w-12 shrink-0 flex-col items-center gap-1 border-r border-border bg-background py-3">
@@ -85,13 +87,13 @@ export function SidebarIcons({
       <Tooltip>
         <TooltipTrigger
           render={
-            <Button variant="ghost" size="icon" disabled={!podeComparar} onClick={onIniciarComparacao} />
+            <Button variant="ghost" size="icon" disabled={!podeAdicionar} onClick={onAdicionarRegiao} />
           }
         >
           <GitCompareArrows />
         </TooltipTrigger>
         <TooltipContent side="right">
-          {podeComparar ? "Comparar com outro ponto" : "Selecione um setor no mapa primeiro"}
+          {podeAdicionar ? "Adicionar região" : motivoNaoPodeAdicionar}
         </TooltipContent>
       </Tooltip>
     </nav>

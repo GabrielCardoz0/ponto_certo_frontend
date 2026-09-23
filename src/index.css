@@ -128,3 +128,10 @@
     @apply font-sans;
     }
 }
+
+/*
+ * Popup de POI no mapa: o conteúdo (bg/cor/borda) e a cor da "setinha" são
+ * aplicados via JS direto no elemento (ver neutralizarWrapperPopup em Map.tsx)
+ * — mais confiável que sobrescrever o CSS do MapLibre por seletor global, que
+ * depende de qual stylesheet carrega por último.
+ */

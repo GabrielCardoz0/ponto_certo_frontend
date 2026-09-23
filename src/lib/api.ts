@@ -37,8 +37,16 @@ export interface Poi {
   id: number;
   categoria: string;
   subcategoria: string;
-  nome: string;
+  nome: string | null;
   fonte: string;
+  localizacao: Localizacao;
+}
+
+/** Contagem de POIs de uma subcategoria dentro do raio da comparação. */
+export interface PoiContagem {
+  categoria: string;
+  subcategoria: string;
+  total: number;
 }
 
 /** Contagem de POIs por categoria dentro do raio pedido no relatório. */
@@ -53,26 +61,14 @@ export interface Relatorio {
   poisPorCategoria: PoiCategoriaCount[];
 }
 
-/** Campos numéricos do setor usados no cálculo de diferença em /setores/comparar. */
-export type SetorDiferenca = Pick<
-  Setor,
-  | "areaKm2"
-  | "populacao"
-  | "rendaMedia"
-  | "rendaMediana"
-  | "densidadeHabKm2"
-  | "tamanhoMedioFamilia"
-  | "desvioPadraoRenda"
-  | "coefVariacaoRenda"
-  | "pctAguaRede"
-  | "pctEsgotoRede"
-  | "pctColetaLixo"
->;
+export interface SetorComPois extends Setor {
+  poisPorCategoria: PoiContagem[];
+}
 
+/** Resposta de /setores/comparar: N setores (na ordem pedida) + POIs no raio fixo. */
 export interface Comparacao {
-  a: Setor;
-  b: Setor;
-  diferenca: SetorDiferenca;
+  raioMetros: number;
+  setores: SetorComPois[];
 }
 
 async function apiFetch<T>(path: string): Promise<T> {
@@ -105,8 +101,9 @@ export function getRelatorio(cdSetor: string, raio: number) {
   return apiFetch<Relatorio>(`/setores/${cdSetor}/relatorio?raio=${raio}`);
 }
 
-export function compararSetores(a: string, b: string) {
-  return apiFetch<Comparacao>(`/setores/comparar?a=${a}&b=${b}`);
+export function compararSetores(cdSetores: string[]) {
+  const ids = cdSetores.map(encodeURIComponent).join(",");
+  return apiFetch<Comparacao>(`/setores/comparar?ids=${ids}`);
 }
 
 export function getSimilares(cdSetor: string, limit = 10, raioExclusaoKm = 50) {

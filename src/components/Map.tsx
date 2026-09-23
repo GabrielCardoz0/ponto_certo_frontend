@@ -6,6 +6,7 @@ import { Protocol } from "pmtiles";
 import { AlertCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatMoeda } from "@/lib/format";
+import { CLASSE_BADGE_PONTO } from "@/lib/badge";
 import type { Localizacao } from "@/types/setor";
 
 /**
@@ -102,6 +103,13 @@ export interface FlyTarget {
   nonce: number;
 }
 
+/** Ponto selecionado que ganha um marcador numerado no mapa. */
+export interface PontoNoMapa {
+  cdSetor: string;
+  numero: number;
+  localizacao: Localizacao;
+}
+
 interface MapViewProps {
   rendaCampo: RendaCampo;
   onSelectSetor: (cdSetor: string, localizacao: Localizacao) => void;
@@ -109,6 +117,9 @@ interface MapViewProps {
   camadaVisivel: boolean;
   rendaOpacidade: number;
   setoresSelecionados: string[];
+  pontos: PontoNoMapa[];
+  /** Quando true, o clique num setor adiciona um ponto (cursor vira mira). */
+  modoSelecao: boolean;
 }
 
 function rendaPropFor(campo: RendaCampo) {
@@ -134,13 +145,31 @@ export function MapView({
   camadaVisivel,
   rendaOpacidade,
   setoresSelecionados,
+  pontos,
+  modoSelecao,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onSelectSetorRef = useRef(onSelectSetor);
+  const modoSelecaoRef = useRef(modoSelecao);
+  const pontosRef = useRef(pontos);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
+  const desenharMarkersRef = useRef<() => void>(() => {});
+
   useEffect(() => {
     onSelectSetorRef.current = onSelectSetor;
   }, [onSelectSetor]);
+
+  useEffect(() => {
+    modoSelecaoRef.current = modoSelecao;
+    const map = mapRef.current;
+    if (map) map.getCanvas().style.cursor = modoSelecao ? "crosshair" : "";
+  }, [modoSelecao]);
+
+  useEffect(() => {
+    pontosRef.current = pontos;
+    desenharMarkersRef.current();
+  }, [pontos]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -239,6 +268,22 @@ export function MapView({
           firstTextLabelId
         );
 
+        // Marcadores numerados dos pontos selecionados (N <= 10, então DOM markers bastam).
+        desenharMarkersRef.current = () => {
+          const atual = mapRef.current;
+          if (!atual) return;
+          markersRef.current.forEach((marker) => marker.remove());
+          markersRef.current = pontosRef.current.map((ponto) => {
+            const el = document.createElement("div");
+            el.className = CLASSE_BADGE_PONTO;
+            el.textContent = String(ponto.numero);
+            return new maplibregl.Marker({ element: el })
+              .setLngLat([ponto.localizacao.lng, ponto.localizacao.lat])
+              .addTo(atual);
+          });
+        };
+        desenharMarkersRef.current();
+
         map.on("click", FILL_LAYER_ID, (e: MapLayerMouseEvent) => {
           const feature = e.features?.[0];
           const cdSetorRaw = feature?.properties?.[PROP_CD_SETOR];
@@ -249,12 +294,7 @@ export function MapView({
           onSelectSetorRef.current(cdSetor, { lng, lat });
         });
 
-        map.on("mouseenter", FILL_LAYER_ID, () => {
-          if (map) map.getCanvas().style.cursor = "pointer";
-        });
-        map.on("mouseleave", FILL_LAYER_ID, () => {
-          if (map) map.getCanvas().style.cursor = "";
-        });
+        map.getCanvas().style.cursor = modoSelecaoRef.current ? "crosshair" : "";
       });
     }
 
@@ -265,6 +305,7 @@ export function MapView({
       map?.remove();
       maplibregl.removeProtocol("pmtiles");
       mapRef.current = null;
+      markersRef.current = [];
     };
     // Efeito de montagem única: rendaCampo/rendaOpacidade iniciais são lidos apenas na
     // criação da layer; atualizações posteriores são tratadas pelos efeitos abaixo.

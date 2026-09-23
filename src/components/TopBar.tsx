@@ -19,7 +19,7 @@ const DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
 
 interface TopBarProps {
-  onSelectResultado: (setor: SetorResumo) => void;
+  onSelectResultado: (setor: SetorResumo, rotulo: string) => void;
 }
 
 export function TopBar({ onSelectResultado }: TopBarProps) {
@@ -82,7 +82,7 @@ export function TopBar({ onSelectResultado }: TopBarProps) {
         regiao: setor.regiao,
         localizacao: sugestao.localizacao,
       };
-      onSelectResultado(resumo);
+      onSelectResultado(resumo, sugestao.texto);
     } catch {
       setErro("Não foi possível localizar um setor censitário para este endereço.");
       setAberto(true);

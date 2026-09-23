@@ -4,14 +4,18 @@ import { TopBar } from "@/components/TopBar";
 import { SidebarIcons } from "@/components/SidebarIcons";
 import { DetailPanel } from "@/components/DetailPanel";
 import { getSetor } from "@/lib/api";
-import type { Localizacao, Setor, SetorResumo } from "@/types/setor";
+import type { Localizacao, PontoSelecionado, Setor, SetorResumo } from "@/types/setor";
 
-type Selecionando = "a" | "b";
+/** Máximo de pontos numa comparação (NBR 14653-2: amostra de 3 a 10, idealmente 6). */
+const MAX_PONTOS = 10;
+
+function rotuloPadrao(setor: Setor) {
+  return `${setor.nmMunicipio} · Setor ${setor.cdSetor}`;
+}
 
 export function App() {
-  const [setorA, setSetorA] = useState<Setor | null>(null);
-  const [setorB, setSetorB] = useState<Setor | null>(null);
-  const [selecionando, setSelecionando] = useState<Selecionando>("a");
+  const [pontos, setPontos] = useState<PontoSelecionado[]>([]);
+  const [modoAdicionar, setModoAdicionar] = useState(false);
   const [carregando, setCarregando] = useState(false);
 
   const [rendaCampo, setRendaCampo] = useState<RendaCampo>("rendaMedia");
@@ -21,18 +25,31 @@ export function App() {
 
   const flyNonce = useRef(0);
 
-  async function selecionarSetor(cdSetor: string, localizacao?: Localizacao) {
+  // Com a lista vazia o primeiro clique já seleciona; depois, só via "Adicionar região".
+  const modoSelecao = pontos.length === 0 || modoAdicionar;
+
+  async function adicionarPonto(
+    cdSetor: string,
+    localizacao: Localizacao,
+    rotulo: string | undefined,
+    voar: boolean
+  ) {
+    if (pontos.length >= MAX_PONTOS) return;
+    if (pontos.some((p) => p.setor.cdSetor === cdSetor)) {
+      setModoAdicionar(false);
+      return;
+    }
+
     setCarregando(true);
     try {
       const setor = await getSetor(cdSetor);
-      if (selecionando === "b" && setorA) {
-        setSetorB(setor);
-        setSelecionando("a");
-      } else {
-        setSetorA(setor);
-        setSetorB(null);
-      }
-      if (localizacao) {
+      setPontos((atual) =>
+        atual.length >= MAX_PONTOS || atual.some((p) => p.setor.cdSetor === setor.cdSetor)
+          ? atual
+          : [...atual, { setor, rotulo: rotulo ?? rotuloPadrao(setor), localizacao }]
+      );
+      setModoAdicionar(false);
+      if (voar) {
         flyNonce.current += 1;
         setFlyTarget({ ...localizacao, nonce: flyNonce.current });
       }
@@ -44,36 +61,38 @@ export function App() {
   }
 
   function handleSelectFromMap(cdSetor: string, localizacao: Localizacao) {
-    void selecionarSetor(cdSetor, localizacao);
+    if (!modoSelecao) return;
+    void adicionarPonto(cdSetor, localizacao, undefined, pontos.length === 0);
   }
 
-  function handleSelectFromSearch(setor: SetorResumo) {
-    void selecionarSetor(setor.cdSetor, setor.localizacao);
+  function handleSelectFromSearch(setor: SetorResumo, rotulo: string) {
+    void adicionarPonto(setor.cdSetor, setor.localizacao, rotulo, true);
   }
 
-  function handleIniciarComparacao() {
-    if (!setorA) return;
-    setSelecionando("b");
+  function handleRemover(cdSetor: string) {
+    setPontos((atual) => atual.filter((p) => p.setor.cdSetor !== cdSetor));
+    setModoAdicionar(false);
   }
 
-  function handleCancelarComparacao() {
-    setSelecionando("a");
+  function handleLimpar() {
+    setPontos([]);
+    setModoAdicionar(false);
   }
 
-  function handleRemoverB() {
-    setSetorB(null);
-    setSelecionando("a");
-  }
+  const podeAdicionar = pontos.length > 0 && pontos.length < MAX_PONTOS && !modoAdicionar;
+  const motivoNaoPodeAdicionar =
+    pontos.length === 0
+      ? "Selecione um setor no mapa primeiro"
+      : pontos.length >= MAX_PONTOS
+        ? `Máximo de ${MAX_PONTOS} pontos`
+        : "Escolha a região no mapa";
 
-  function handleFecharPainel() {
-    setSetorA(null);
-    setSetorB(null);
-    setSelecionando("a");
-  }
-
-  const setoresSelecionados = [setorA?.cdSetor, setorB?.cdSetor].filter(
-    (cdSetor): cdSetor is string => Boolean(cdSetor)
-  );
+  const setoresSelecionados = pontos.map((p) => p.setor.cdSetor);
+  const pontosNoMapa = pontos.map((p, i) => ({
+    cdSetor: p.setor.cdSetor,
+    numero: i + 1,
+    localizacao: p.localizacao,
+  }));
 
   return (
     <div className="flex h-svh w-screen flex-col overflow-hidden">
@@ -86,8 +105,9 @@ export function App() {
           onToggleCamada={() => setCamadaVisivel((v) => !v)}
           rendaOpacidade={rendaOpacidade}
           onChangeRendaOpacidade={setRendaOpacidade}
-          podeComparar={Boolean(setorA) && !setorB}
-          onIniciarComparacao={handleIniciarComparacao}
+          podeAdicionar={podeAdicionar}
+          motivoNaoPodeAdicionar={motivoNaoPodeAdicionar}
+          onAdicionarRegiao={() => setModoAdicionar(true)}
         />
         <main className="relative min-w-0 flex-1">
           <MapView
@@ -97,18 +117,19 @@ export function App() {
             camadaVisivel={camadaVisivel}
             rendaOpacidade={rendaOpacidade}
             setoresSelecionados={setoresSelecionados}
+            pontos={pontosNoMapa}
+            modoSelecao={modoSelecao}
           />
         </main>
         <DetailPanel
-          key={setorA?.cdSetor ?? "empty"}
-          setorA={setorA}
-          setorB={setorB}
+          pontos={pontos}
+          maxPontos={MAX_PONTOS}
           carregando={carregando}
-          aguardandoPontoB={selecionando === "b" && !setorB}
-          onIniciarComparacao={handleIniciarComparacao}
-          onCancelarComparacao={handleCancelarComparacao}
-          onRemoverB={handleRemoverB}
-          onFechar={handleFecharPainel}
+          modoAdicionar={modoAdicionar}
+          onAdicionarRegiao={() => setModoAdicionar(true)}
+          onCancelarAdicao={() => setModoAdicionar(false)}
+          onRemover={handleRemover}
+          onLimpar={handleLimpar}
         />
       </div>
     </div>

@@ -1,161 +1,122 @@
 import { useState } from "react";
-import { X, GitCompareArrows, Loader2 } from "lucide-react";
+import { X, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { BadgePonto } from "@/components/BadgePonto";
 import { ComparacaoModal } from "@/components/ComparacaoModal";
-import { formatMoeda, formatNumero } from "@/lib/format";
-import type { Setor } from "@/types/setor";
+import { formatMoeda } from "@/lib/format";
+import type { PontoSelecionado } from "@/types/setor";
 
 interface DetailPanelProps {
-  setorA: Setor | null;
-  setorB: Setor | null;
+  pontos: PontoSelecionado[];
+  maxPontos: number;
   carregando: boolean;
-  aguardandoPontoB: boolean;
-  onIniciarComparacao: () => void;
-  onCancelarComparacao: () => void;
-  onRemoverB: () => void;
-  onFechar: () => void;
-}
-
-function CampoDado({ label, valor }: { label: string; valor: string }) {
-  return (
-    <div className="flex items-center justify-between gap-2 py-1 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{valor}</span>
-    </div>
-  );
-}
-
-function SetorDados({ setor }: { setor: Setor }) {
-  return (
-    <div>
-      <CampoDado label="Renda média" valor={formatMoeda(setor.rendaMedia)} />
-      <CampoDado label="Renda mediana" valor={formatMoeda(setor.rendaMediana)} />
-      <CampoDado label="População" valor={formatNumero(setor.populacao)} />
-      <CampoDado label="Densidade (hab/km²)" valor={formatNumero(setor.densidadeHabKm2, 1)} />
-      <CampoDado label="Área (km²)" valor={formatNumero(setor.areaKm2, 2)} />
-      <CampoDado label="Tamanho médio da família" valor={formatNumero(setor.tamanhoMedioFamilia, 2)} />
-      <CampoDado label="Situação" valor={setor.situacao ?? "—"} />
-    </div>
-  );
+  modoAdicionar: boolean;
+  onAdicionarRegiao: () => void;
+  onCancelarAdicao: () => void;
+  onRemover: (cdSetor: string) => void;
+  onLimpar: () => void;
 }
 
 export function DetailPanel({
-  setorA,
-  setorB,
+  pontos,
+  maxPontos,
   carregando,
-  aguardandoPontoB,
-  onIniciarComparacao,
-  onCancelarComparacao,
-  onRemoverB,
-  onFechar,
+  modoAdicionar,
+  onAdicionarRegiao,
+  onCancelarAdicao,
+  onRemover,
+  onLimpar,
 }: DetailPanelProps) {
-  const [comparacaoAberta, setComparacaoAberta] = useState(false);
+  const [detalhesAbertos, setDetalhesAbertos] = useState(false);
 
-  if (!setorA && !carregando) {
+  if (pontos.length === 0 && !carregando) {
     return null;
   }
 
+  const limiteAtingido = pontos.length >= maxPontos;
+
   return (
     <aside className="animate-in slide-in-from-right-8 fade-in flex w-80 shrink-0 flex-col border-l border-border bg-background duration-200">
-      {!setorA && carregando && (
+      {pontos.length === 0 ? (
         <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Carregando dados do setor...</p>
         </div>
-      )}
-
-      {setorA && (
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="flex flex-col gap-4 p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h2 className="text-sm font-semibold">{setorA.nmMunicipio}</h2>
-                <p className="text-xs text-muted-foreground">
-                  {setorA.uf} · {setorA.regiao} · Setor {setorA.cdSetor}
-                </p>
-              </div>
-              <Button variant="ghost" size="icon-sm" onClick={onFechar} title="Fechar painel">
-                <X />
-              </Button>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+            <div>
+              <h2 className="text-sm font-semibold">Pontos selecionados</h2>
+              <p className="text-xs text-muted-foreground">
+                {pontos.length} de {maxPontos}
+              </p>
             </div>
+            <Button variant="ghost" size="icon-sm" onClick={onLimpar} title="Limpar seleção">
+              <X />
+            </Button>
+          </div>
 
-            <SetorDados setor={setorA} />
-
-            {aguardandoPontoB && (
-              <>
-                <Separator />
-                <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border p-3 text-center">
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Clique em um segundo ponto do mapa para comparar.
-                  </p>
-                  <Button variant="ghost" size="sm" onClick={onCancelarComparacao}>
-                    Cancelar
-                  </Button>
-                </div>
-              </>
-            )}
-
-            {carregando && setorB === null && !aguardandoPontoB && (
-              <>
-                <Separator />
-                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Loader2 className="size-3.5 animate-spin" /> Carregando ponto B...
-                </p>
-              </>
-            )}
-
-            {setorB && (
-              <>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-sm font-semibold">{setorB.nmMunicipio}</h2>
+          <ScrollArea className="min-h-0 flex-1">
+            <ul className="flex flex-col gap-1 p-2">
+              {pontos.map((ponto, indice) => (
+                <li
+                  key={ponto.setor.cdSetor}
+                  className="flex items-center gap-2.5 rounded-md px-2 py-2 hover:bg-muted/60"
+                >
+                  <BadgePonto numero={indice + 1} />
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-sm leading-snug font-medium">{ponto.rotulo}</p>
                     <p className="text-xs text-muted-foreground">
-                      {setorB.uf} · {setorB.regiao} · Setor {setorB.cdSetor}
+                      Renda média {formatMoeda(ponto.setor.rendaMedia)}
                     </p>
                   </div>
-                  <Button variant="ghost" size="icon-sm" onClick={onRemoverB} title="Remover ponto B">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => onRemover(ponto.setor.cdSetor)}
+                    title={`Remover ponto ${indice + 1}`}
+                  >
                     <X />
                   </Button>
-                </div>
-                <SetorDados setor={setorB} />
-              </>
-            )}
+                </li>
+              ))}
+              {carregando && (
+                <li className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" /> Carregando ponto...
+                </li>
+              )}
+            </ul>
+          </ScrollArea>
 
-            <Separator />
-
-            {!setorB && !aguardandoPontoB && (
-              <Button variant="outline" onClick={onIniciarComparacao}>
-                <GitCompareArrows />
-                Comparar com outro ponto
+          <div className="flex shrink-0 flex-col gap-2 border-t border-border p-4">
+            {modoAdicionar ? (
+              <div className="flex flex-col items-center gap-1 rounded-md border border-dashed border-border p-3 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Clique no mapa (ou busque um endereço) para escolher a próxima região.
+                </p>
+                <Button variant="ghost" size="sm" onClick={onCancelarAdicao}>
+                  Cancelar
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={onAdicionarRegiao}
+                disabled={limiteAtingido}
+                title={limiteAtingido ? `Máximo de ${maxPontos} pontos` : undefined}
+              >
+                <Plus />
+                Adicionar região
               </Button>
             )}
+            <Button onClick={() => setDetalhesAbertos(true)} disabled={modoAdicionar}>
+              Ver detalhes
+            </Button>
           </div>
-        </ScrollArea>
-      )}
 
-      {setorA && (
-        <div className="shrink-0 border-t border-border p-4">
-          <Button
-            className="w-full"
-            onClick={() => setComparacaoAberta(true)}
-            disabled={aguardandoPontoB}
-          >
-            Ver detalhes
-          </Button>
-        </div>
-      )}
-
-      {setorA && (
-        <ComparacaoModal
-          open={comparacaoAberta}
-          onOpenChange={setComparacaoAberta}
-          setorA={setorA}
-          setorB={setorB}
-        />
+          <ComparacaoModal open={detalhesAbertos} onOpenChange={setDetalhesAbertos} pontos={pontos} />
+        </>
       )}
     </aside>
   );
