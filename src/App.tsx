@@ -25,16 +25,18 @@ export function App() {
 
   const flyNonce = useRef(0);
 
-  // Com a lista vazia o primeiro clique já seleciona; depois, só via "Adicionar região".
-  const modoSelecao = pontos.length === 0 || modoAdicionar;
+  // Clicar no mapa sempre seleciona: com pontos e sem "Adicionar região" ativo,
+  // o clique troca o último ponto; em modo adicionar (ou lista vazia), acrescenta.
+  const substituindo = pontos.length > 0 && !modoAdicionar;
 
   async function adicionarPonto(
     cdSetor: string,
     localizacao: Localizacao,
     rotulo: string | undefined,
-    voar: boolean
+    voar: boolean,
+    substituir = false
   ) {
-    if (pontos.length >= MAX_PONTOS) return;
+    if (!substituir && pontos.length >= MAX_PONTOS) return;
     if (pontos.some((p) => p.setor.cdSetor === cdSetor)) {
       setModoAdicionar(false);
       return;
@@ -43,10 +45,13 @@ export function App() {
     setCarregando(true);
     try {
       const setor = await getSetor(cdSetor);
+      const novo = { setor, rotulo: rotulo ?? rotuloPadrao(setor), localizacao };
       setPontos((atual) =>
-        atual.length >= MAX_PONTOS || atual.some((p) => p.setor.cdSetor === setor.cdSetor)
+        substituir && atual.length > 0
+          ? [...atual.slice(0, -1), novo]
+          : atual.length >= MAX_PONTOS || atual.some((p) => p.setor.cdSetor === setor.cdSetor)
           ? atual
-          : [...atual, { setor, rotulo: rotulo ?? rotuloPadrao(setor), localizacao }]
+          : [...atual, novo]
       );
       setModoAdicionar(false);
       if (voar) {
@@ -61,8 +66,7 @@ export function App() {
   }
 
   function handleSelectFromMap(cdSetor: string, localizacao: Localizacao) {
-    if (!modoSelecao) return;
-    void adicionarPonto(cdSetor, localizacao, undefined, pontos.length === 0);
+    void adicionarPonto(cdSetor, localizacao, undefined, true, substituindo);
   }
 
   function handleSelectFromSearch(setor: SetorResumo, rotulo: string) {
@@ -118,7 +122,6 @@ export function App() {
             rendaOpacidade={rendaOpacidade}
             setoresSelecionados={setoresSelecionados}
             pontos={pontosNoMapa}
-            modoSelecao={modoSelecao}
           />
         </main>
         <DetailPanel

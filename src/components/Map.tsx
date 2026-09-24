@@ -118,8 +118,6 @@ interface MapViewProps {
   rendaOpacidade: number;
   setoresSelecionados: string[];
   pontos: PontoNoMapa[];
-  /** Quando true, o clique num setor adiciona um ponto (cursor vira mira). */
-  modoSelecao: boolean;
 }
 
 function rendaPropFor(campo: RendaCampo) {
@@ -146,12 +144,10 @@ export function MapView({
   rendaOpacidade,
   setoresSelecionados,
   pontos,
-  modoSelecao,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onSelectSetorRef = useRef(onSelectSetor);
-  const modoSelecaoRef = useRef(modoSelecao);
   const pontosRef = useRef(pontos);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const desenharMarkersRef = useRef<() => void>(() => {});
@@ -159,12 +155,6 @@ export function MapView({
   useEffect(() => {
     onSelectSetorRef.current = onSelectSetor;
   }, [onSelectSetor]);
-
-  useEffect(() => {
-    modoSelecaoRef.current = modoSelecao;
-    const map = mapRef.current;
-    if (map) map.getCanvas().style.cursor = modoSelecao ? "crosshair" : "";
-  }, [modoSelecao]);
 
   useEffect(() => {
     pontosRef.current = pontos;
@@ -294,7 +284,12 @@ export function MapView({
           onSelectSetorRef.current(cdSetor, { lng, lat });
         });
 
-        map.getCanvas().style.cursor = modoSelecaoRef.current ? "crosshair" : "";
+        map.on("mouseenter", FILL_LAYER_ID, () => {
+          map!.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", FILL_LAYER_ID, () => {
+          map!.getCanvas().style.cursor = "";
+        });
       });
     }
 
