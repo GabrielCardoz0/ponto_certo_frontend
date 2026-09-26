@@ -60,7 +60,7 @@ export function ComparacaoModal({ open, onOpenChange, pontos }: ComparacaoModalP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[90vh] max-h-[90vh] w-[95vw] max-w-6xl flex-col">
+      <DialogContent className="flex h-[90vh] max-h-[90vh] w-[96vw] max-w-[110rem] flex-col">
         <DialogHeader>
           <DialogTitle>{colunasCount === 1 ? "Detalhes do ponto" : "Comparação de pontos"}</DialogTitle>
           <DialogDescription>
