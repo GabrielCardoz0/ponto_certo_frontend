@@ -37,7 +37,7 @@ export function DetailPanel({
   const limiteAtingido = pontos.length >= maxPontos;
 
   return (
-    <aside className="animate-in slide-in-from-right-8 fade-in flex w-80 shrink-0 flex-col border-l border-border bg-background duration-200">
+    <aside className="animate-in slide-in-from-right-8 fade-in flex w-70 shrink-0 flex-col border-l border-border bg-background duration-200">
       {pontos.length === 0 ? (
         <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
@@ -47,10 +47,10 @@ export function DetailPanel({
         <>
           <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
             <div>
-              <h2 className="text-sm font-semibold">Pontos selecionados</h2>
-              <p className="text-xs text-muted-foreground">
-                {pontos.length} de {maxPontos}
-              </p>
+              <h2 className="text-sm font-semibold">
+                {pontos.length} {pontos.length === 1 ? "região selecionada" : "regiões selecionadas"}
+              </h2>
+              <p className="text-xs text-muted-foreground">Máximo de {maxPontos}</p>
             </div>
             <Button variant="ghost" size="icon-sm" onClick={onLimpar} title="Limpar seleção">
               <X />

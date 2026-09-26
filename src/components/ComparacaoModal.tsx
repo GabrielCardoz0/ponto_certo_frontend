@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -9,12 +9,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BadgePonto } from "@/components/BadgePonto";
-import { compararSetores } from "@/lib/api";
+import { MapView, type FitTarget } from "@/components/Map";
+import { TabelaSecao } from "@/components/TabelaSecao";
+import { compararSetores, getPois } from "@/lib/api";
+import { BOUNDS_BRASIL, boundsDoRaio, enquadramentoDosPontos } from "@/lib/geo";
 import { montarTabelaComparativa } from "@/utils/tabelaComparativa";
-import type { Comparacao, PontoSelecionado } from "@/types/setor";
+import type { Comparacao, PontoSelecionado, Poi } from "@/types/setor";
 
 const MINIMO_RECOMENDADO = 3;
+const RAIO_PADRAO_METROS = 1000;
+const SEM_POIS: Poi[] = [];
 
 interface ComparacaoModalProps {
   open: boolean;
@@ -23,19 +27,55 @@ interface ComparacaoModalProps {
 }
 
 export function ComparacaoModal({ open, onOpenChange, pontos }: ComparacaoModalProps) {
+  const total = pontos.length;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex h-[90vh] max-h-[90vh] w-[96vw] max-w-[110rem] flex-col">
+        <DialogHeader>
+          <DialogTitle>{total === 1 ? "Detalhes do ponto" : "Comparação de pontos"}</DialogTitle>
+        </DialogHeader>
+
+        {/* Monta só com o modal aberto: cada abertura começa do zero (mapa, ponto ativo, cache). */}
+        <ConteudoComparacao pontos={pontos} />
+
+        <DialogFooter className="items-center sm:justify-between">
+          <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+            {total < MINIMO_RECOMENDADO && (
+              <p>Amostra abaixo do mínimo recomendado de {MINIMO_RECOMENDADO} pontos para comparação.</p>
+            )}
+            <p>Dados: IBGE e outras fontes públicas, com modelagem própria auditável.</p>
+          </div>
+          <Button variant="outline" disabled title="Em breve">
+            Exportar relatório
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ConteudoComparacao({ pontos }: { pontos: PontoSelecionado[] }) {
   const [comparacao, setComparacao] = useState<Comparacao | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
+  const [pontoAtivo, setPontoAtivo] = useState<string | null>(null);
+  const [poisPorSetor, setPoisPorSetor] = useState<Record<string, Poi[]>>({});
+  const [carregandoPois, setCarregandoPois] = useState(false);
+  const [fitTarget, setFitTarget] = useState<FitTarget | null>(null);
+  const fitNonce = useRef(0);
+
+  // Enquadramento com todos os pontos, calculado uma vez ao abrir. Pontos muito espalhados
+  // (> ~150 km) caem na visão geral do Brasil em vez de um fitBounds que perde o sentido.
+  const [enquadramento] = useState(() => enquadramentoDosPontos(pontos.map((p) => p.localizacao)));
+  const boundsGeral = enquadramento.tipo === "bounds" ? enquadramento.bounds : BOUNDS_BRASIL;
+
   const idsKey = pontos.map((p) => p.setor.cdSetor).join(",");
+  const raioMetros = comparacao?.raioMetros ?? RAIO_PADRAO_METROS;
 
   useEffect(() => {
-    if (!open) return;
     let cancelado = false;
-    // Fetch acionado pela abertura do modal / mudança dos pontos: liga o loading antes de chamar a API.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    setErro(null);
     compararSetores(idsKey.split(","))
       .then((data) => {
         if (!cancelado) setComparacao(data);
@@ -49,111 +89,105 @@ export function ComparacaoModal({ open, onOpenChange, pontos }: ComparacaoModalP
     return () => {
       cancelado = true;
     };
-  }, [open, idsKey]);
+  }, [idsKey]);
 
   const tabela = useMemo(
     () => (comparacao ? montarTabelaComparativa(pontos, comparacao) : null),
     [pontos, comparacao]
   );
 
-  const colunasCount = pontos.length;
+  function pedirEnquadramento(bounds: FitTarget["bounds"]) {
+    fitNonce.current += 1;
+    setFitTarget({ bounds, nonce: fitNonce.current });
+  }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[90vh] max-h-[90vh] w-[96vw] max-w-[110rem] flex-col">
-        <DialogHeader>
-          <DialogTitle>{colunasCount === 1 ? "Detalhes do ponto" : "Comparação de pontos"}</DialogTitle>
-          <DialogDescription>
-            {colunasCount} {colunasCount === 1 ? "ponto selecionado" : "pontos selecionados"}
-          </DialogDescription>
-        </DialogHeader>
+  /** Clique no número (pino ou cabeçalho): zoom no ponto + POIs do raio + destaque na tabela. */
+  function selecionarPonto(cdSetor: string) {
+    if (cdSetor === pontoAtivo) {
+      setPontoAtivo(null);
+      pedirEnquadramento(boundsGeral);
+      return;
+    }
 
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-md border border-border">
-          {loading && !tabela && (
-            <p className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" /> Carregando detalhes...
-            </p>
-          )}
-          {erro && <p className="p-4 text-sm text-destructive">{erro}</p>}
+    const ponto = pontos.find((p) => p.setor.cdSetor === cdSetor);
+    if (!ponto) return;
+    setPontoAtivo(cdSetor);
+    pedirEnquadramento(boundsDoRaio(ponto.localizacao, raioMetros));
 
-          {tabela && (
-            <>
-              <div className="h-full overflow-auto">
-                <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
-                  <thead>
-                    <tr>
-                      <th className="sticky top-0 left-0 z-30 min-w-52 border-b border-border bg-popover px-3 py-2 text-left text-xs font-medium text-muted-foreground">
-                        Variável
-                      </th>
-                      {tabela.colunas.map((coluna) => (
-                        <th
-                          key={coluna.numero}
-                          className="sticky top-0 z-20 w-44 min-w-44 border-b border-border bg-popover px-3 py-2 text-left align-top"
-                        >
-                          <div className="flex items-start gap-2">
-                            <BadgePonto numero={coluna.numero} />
-                            <span className="line-clamp-2 text-xs leading-snug font-medium">
-                              {coluna.rotulo}
-                            </span>
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tabela.secoes.map((secao) => (
-                      <SecaoLinhas key={secao.titulo} secao={secao} colunas={tabela.colunas.length} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+    if (poisPorSetor[cdSetor]) return;
+    setCarregandoPois(true);
+    getPois(cdSetor, raioMetros)
+      .then((pois) => setPoisPorSetor((atual) => ({ ...atual, [cdSetor]: pois })))
+      .catch(() => setPoisPorSetor((atual) => ({ ...atual, [cdSetor]: SEM_POIS })))
+      .finally(() => setCarregandoPois(false));
+  }
 
-            </>
-          )}
-        </div>
-
-        <DialogFooter className="items-center sm:justify-between">
-          <p className="text-xs text-muted-foreground">
-            {colunasCount < MINIMO_RECOMENDADO
-              ? `Amostra abaixo do mínimo recomendado de ${MINIMO_RECOMENDADO} pontos para comparação.`
-              : "Dados: IBGE e outras fontes públicas, com modelagem própria auditável."}
-          </p>
-          <Button variant="outline" disabled title="Em breve">
-            Exportar relatório
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+  const numeroAtivo = pontoAtivo ? pontos.findIndex((p) => p.setor.cdSetor === pontoAtivo) + 1 : null;
+  const poisAtivos = useMemo(
+    () => (pontoAtivo ? (poisPorSetor[pontoAtivo] ?? SEM_POIS) : SEM_POIS),
+    [pontoAtivo, poisPorSetor]
   );
-}
+  const pontosNoMapa = useMemo(
+    () => pontos.map((p, i) => ({ cdSetor: p.setor.cdSetor, numero: i + 1, localizacao: p.localizacao })),
+    [pontos]
+  );
+  const setoresSelecionados = useMemo(() => pontos.map((p) => p.setor.cdSetor), [pontos]);
 
-function SecaoLinhas({
-  secao,
-  colunas,
-}: {
-  secao: { titulo: string; linhas: { rotulo: string; valores: string[] }[] };
-  colunas: number;
-}) {
   return (
-    <>
-      <tr>
-        <th className="sticky left-0 z-10 min-w-52 border-b border-border bg-muted px-3 py-1.5 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          {secao.titulo}
-        </th>
-        <td colSpan={colunas} className="border-b border-border bg-muted" />
-      </tr>
-      {secao.linhas.map((linha) => (
-        <tr key={linha.rotulo} className="hover:bg-muted/40">
-          <td className="sticky left-0 z-10 min-w-52 border-b border-border bg-popover px-3 py-2 text-muted-foreground">
-            {linha.rotulo}
-          </td>
-          {linha.valores.map((valor, i) => (
-            <td key={i} className="w-44 min-w-44 border-b border-border px-3 py-2 tabular-nums">
-              {valor}
-            </td>
-          ))}
-        </tr>
-      ))}
-    </>
+    // Mapa e tabelas rolam juntos; só o rodapé do modal (Exportar relatório) fica fixo.
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      {/* Acima do mapa e rolando com ele: sem mapa à vista, a instrução não faz sentido. */}
+      <DialogDescription className="mb-2">
+        {pontos.length} {pontos.length === 1 ? "ponto selecionado" : "pontos selecionados"} · clique no
+        número de um ponto para ver o entorno no mapa.
+      </DialogDescription>
+      <div className="relative mb-6 h-72 overflow-hidden rounded-md border border-border">
+        <MapView
+          rendaCampo="rendaMedia"
+          onSelectSetor={() => {}}
+          flyTarget={null}
+          camadaVisivel
+          rendaOpacidade={0.6}
+          setoresSelecionados={setoresSelecionados}
+          pontos={pontosNoMapa}
+          pois={poisAtivos}
+          fitTarget={fitTarget}
+          vistaInicial={enquadramento}
+          onPontoClick={(numero) => selecionarPonto(pontos[numero - 1].setor.cdSetor)}
+          pontoAtivo={numeroAtivo}
+          permitirSelecao={false}
+          mostrarLegenda={false}
+          gestosCooperativos
+        />
+        {carregandoPois && (
+          <p className="pointer-events-none absolute top-3 left-3 flex items-center gap-1.5 rounded-md border border-border bg-background/90 px-2.5 py-1 text-xs text-muted-foreground">
+            <Loader2 className="size-3 animate-spin" /> Carregando POIs...
+          </p>
+        )}
+      </div>
+
+      <div>
+        {loading && (
+          <p className="flex items-center gap-2 p-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" /> Carregando detalhes...
+          </p>
+        )}
+        {erro && <p className="p-2 text-sm text-destructive">{erro}</p>}
+
+        {tabela && (
+          <div className="flex flex-col gap-6 pb-2">
+            {tabela.secoes.map((secao) => (
+              <TabelaSecao
+                key={secao.id}
+                secao={secao}
+                colunas={tabela.colunas}
+                pontoAtivo={pontoAtivo}
+                onSelecionarPonto={selecionarPonto}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

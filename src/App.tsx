@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { MapView, type FlyTarget, type RendaCampo } from "@/components/Map";
 import { TopBar } from "@/components/TopBar";
 import { SidebarIcons } from "@/components/SidebarIcons";
@@ -92,11 +92,10 @@ export function App() {
         : "Escolha a região no mapa";
 
   const setoresSelecionados = pontos.map((p) => p.setor.cdSetor);
-  const pontosNoMapa = pontos.map((p, i) => ({
-    cdSetor: p.setor.cdSetor,
-    numero: i + 1,
-    localizacao: p.localizacao,
-  }));
+  const pontosNoMapa = useMemo(
+    () => pontos.map((p, i) => ({ cdSetor: p.setor.cdSetor, numero: i + 1, localizacao: p.localizacao })),
+    [pontos]
+  );
 
   return (
     <div className="flex h-svh w-screen flex-col overflow-hidden">
