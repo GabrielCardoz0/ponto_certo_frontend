@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { MapView, type FitTarget } from "@/components/Map";
 import { TabelaSecao } from "@/components/TabelaSecao";
+import { RelatorioPontoUnico } from "@/components/RelatorioPontoUnico";
 import { compararSetores, getPois } from "@/lib/api";
 import { BOUNDS_BRASIL, boundsDoRaio, enquadramentoDosPontos } from "@/lib/geo";
 import { montarTabelaComparativa } from "@/utils/tabelaComparativa";
@@ -174,18 +175,24 @@ function ConteudoComparacao({ pontos }: { pontos: PontoSelecionado[] }) {
         )}
         {erro && <p className="p-2 text-sm text-destructive">{erro}</p>}
 
-        {tabela && (
-          <div className="flex flex-col gap-6 pb-2">
-            {tabela.secoes.map((secao) => (
-              <TabelaSecao
-                key={secao.id}
-                secao={secao}
-                colunas={tabela.colunas}
-                pontoAtivo={pontoAtivo}
-                onSelecionarPonto={selecionarPonto}
-              />
-            ))}
-          </div>
+        {/* 1 ponto: relatório em cartões, mais fácil de ler que uma tabela de 1 coluna só.
+            2+ pontos: mantém a tabela comparativa (o formato de cartões não foi desenhado pra N colunas). */}
+        {tabela && comparacao && pontos.length === 1 && comparacao.setores[0] ? (
+          <RelatorioPontoUnico ponto={pontos[0]} setor={comparacao.setores[0]} raioMetros={comparacao.raioMetros} />
+        ) : (
+          tabela && (
+            <div className="flex flex-col gap-6 pb-2">
+              {tabela.secoes.map((secao) => (
+                <TabelaSecao
+                  key={secao.id}
+                  secao={secao}
+                  colunas={tabela.colunas}
+                  pontoAtivo={pontoAtivo}
+                  onSelecionarPonto={selecionarPonto}
+                />
+              ))}
+            </div>
+          )
         )}
       </div>
     </div>

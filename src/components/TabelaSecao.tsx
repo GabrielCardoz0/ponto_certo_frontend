@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { BadgePonto } from "@/components/BadgePonto";
+import { InfoIcone } from "@/components/InfoIcone";
 import { ALTURA_FAIXA_PIRAMIDE, PiramideEtaria } from "@/components/PiramideEtaria";
 import type {
   CelulaTabela,
@@ -76,7 +77,10 @@ export function TabelaSecao({ secao, colunas, pontoAtivo, onSelecionarPonto }: T
 
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-sm font-semibold">{secao.titulo}</h3>
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+        {secao.titulo}
+        {secao.info && <InfoIcone texto={secao.info} />}
+      </h3>
 
       <div ref={containerRef} className="relative overflow-x-auto rounded-md border border-border">
         <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
@@ -138,7 +142,10 @@ function Linha({
     return (
       <tr>
         <th className="sticky left-0 z-10 min-w-52 border-b border-border bg-muted px-3 py-1.5 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          {linha.titulo}
+          <span className="flex items-center gap-1.5">
+            {linha.titulo}
+            {linha.info && <InfoIcone texto={linha.info} />}
+          </span>
         </th>
         <td colSpan={totalColunas} className="border-b border-border bg-muted" />
       </tr>
@@ -153,7 +160,10 @@ function Linha({
         scope="row"
         className="sticky left-0 z-10 min-w-52 border-b border-border bg-popover px-3 py-2 text-left align-top text-sm font-normal text-muted-foreground"
       >
-        {linha.rotulo}
+        <span className="flex items-center gap-1.5">
+          {linha.rotulo}
+          {linha.info && <InfoIcone texto={linha.info} />}
+        </span>
         {linha.tipo === "piramide" && (
           <div className="mt-1 text-[10px] text-muted-foreground/80" aria-hidden>
             {linha.faixasRotulos.map((faixa) => (
