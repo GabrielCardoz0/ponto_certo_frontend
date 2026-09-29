@@ -4,6 +4,7 @@ import { TopBar } from "@/components/TopBar";
 import { SidebarIcons } from "@/components/SidebarIcons";
 import { DetailPanel } from "@/components/DetailPanel";
 import { getSetor } from "@/lib/api";
+import { useFatorCorrecao } from "@/lib/correcaoMonetaria";
 import type { Localizacao, PontoSelecionado, Setor, SetorResumo } from "@/types/setor";
 
 /** Máximo de pontos numa comparação (NBR 14653-2: amostra de 3 a 10, idealmente 6). */
@@ -20,8 +21,9 @@ export function App() {
 
   const [rendaCampo, setRendaCampo] = useState<RendaCampo>("rendaMedia");
   const [camadaVisivel, setCamadaVisivel] = useState(true);
-  const [rendaOpacidade, setRendaOpacidade] = useState(0.6);
+  const [rendaOpacidade, setRendaOpacidade] = useState(0.5);
   const [flyTarget, setFlyTarget] = useState<FlyTarget | null>(null);
+  const fatorCorrecao = useFatorCorrecao();
 
   const flyNonce = useRef(0);
 
@@ -121,6 +123,7 @@ export function App() {
             rendaOpacidade={rendaOpacidade}
             setoresSelecionados={setoresSelecionados}
             pontos={pontosNoMapa}
+            fatorCorrecao={fatorCorrecao.fatorAcumulado}
           />
         </main>
         <DetailPanel
@@ -132,6 +135,7 @@ export function App() {
           onCancelarAdicao={() => setModoAdicionar(false)}
           onRemover={handleRemover}
           onLimpar={handleLimpar}
+          fatorCorrecao={fatorCorrecao.fatorAcumulado}
         />
       </div>
     </div>

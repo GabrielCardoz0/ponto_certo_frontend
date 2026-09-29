@@ -1,4 +1,5 @@
 import { classeEconomica } from "@/lib/abep";
+import { corrigirRenda } from "@/lib/correcaoMonetaria";
 import { formatMoeda, formatNumero } from "@/lib/format";
 import { rotuloCategoria, rotuloSubcategoria } from "@/utils/nomePoi";
 import type { Comparacao, PontoSelecionado, SetorComPois } from "@/types/setor";
@@ -170,7 +171,7 @@ function secaoLocalizacao(pontos: PontoSelecionado[], setores: Setores, raioMetr
   return { id: "localizacao", titulo: "Localização e entorno", linhas };
 }
 
-function secaoSocioeconomico(setores: Setores): SecaoTabela {
+function secaoSocioeconomico(setores: Setores, fator: number): SecaoTabela {
   return {
     id: "socioeconomico",
     titulo: "Perfil socioeconômico",
@@ -178,29 +179,29 @@ function secaoSocioeconomico(setores: Setores): SecaoTabela {
       linha(
         "Renda média",
         setores,
-        (s) => texto(formatMoeda(s.rendaMedia)),
-        "Renda média dos domicílios do setor censitário, em valores do Censo 2022 — ainda sem correção pela inflação até a data de hoje."
+        (s) => texto(formatMoeda(corrigirRenda(s.rendaMedia, fator))),
+        "Renda média dos domicílios do setor censitário, corrigida do valor bruto do Censo 2022 pra hoje pelo IPCA acumulado."
       ),
       linha(
         "Renda mediana",
         setores,
-        (s) => texto(formatMoeda(s.rendaMediana)),
-        "Valor que divide os domicílios do setor ao meio: metade tem renda maior, metade tem renda menor. Menos sensível a valores extremos do que a média."
+        (s) => texto(formatMoeda(corrigirRenda(s.rendaMediana, fator))),
+        "Valor que divide os domicílios do setor ao meio: metade tem renda maior, metade tem renda menor. Menos sensível a valores extremos do que a média. Também corrigida pelo IPCA acumulado."
       ),
       linha(
         "Classe econômica",
         setores,
         (s) => {
-          const classe = classeEconomica(s.rendaMedia);
+          const classe = classeEconomica(corrigirRenda(s.rendaMedia, fator));
           return classe ? { tipo: "texto", texto: classe.label, cor: classe.cor } : SEM_DADO;
         },
-        "Classificação econômica ABEP (A1 a DE), calculada a partir da faixa de renda média do setor."
+        "Classificação econômica ABEP (A1 a DE), calculada a partir da renda média do setor já corrigida pelo IPCA."
       ),
       linha(
         "Coeficiente de variação da renda",
         setores,
         (s) => (s.coefVariacaoRenda === null ? SEM_DADO : texto(formatNumero(s.coefVariacaoRenda, 2))),
-        "Quanto menor, mais parecida é a renda entre os domicílios do setor; quanto maior, mais desigual."
+        "Quanto menor, mais parecida é a renda entre os domicílios do setor; quanto maior, mais desigual. É uma proporção — a correção monetária não muda esse número."
       ),
     ],
     nota: "Coeficiente de variação: quanto menor, mais homogênea a renda dentro do setor. Índice de Potencial de Consumo: em breve.",
@@ -448,7 +449,9 @@ function secaoVulnerabilidade(pontos: PontoSelecionado[], setores: Setores): Sec
 
 export function montarTabelaComparativa(
   pontos: PontoSelecionado[],
-  comparacao: Comparacao
+  comparacao: Comparacao,
+  /** Corrige a renda bruta do Censo pra valores de hoje. Padrão: 1 (sem correção). */
+  fatorCorrecao = 1
 ): TabelaComparativa {
   const porSetor = new Map(comparacao.setores.map((s) => [s.cdSetor, s]));
   const setores: Setores = pontos.map((p) => porSetor.get(p.setor.cdSetor));
@@ -458,7 +461,7 @@ export function montarTabelaComparativa(
     colunas: pontos.map((p, i) => ({ numero: i + 1, cdSetor: p.setor.cdSetor, rotulo: p.rotulo })),
     secoes: [
       secaoLocalizacao(pontos, setores, comparacao.raioMetros),
-      secaoSocioeconomico(setores),
+      secaoSocioeconomico(setores, fatorCorrecao),
       secaoDemografico(setores),
       secaoVulnerabilidade(pontos, setores),
     ],

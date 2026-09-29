@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BadgePonto } from "@/components/BadgePonto";
 import { ComparacaoModal } from "@/components/ComparacaoModal";
+import { corrigirRenda } from "@/lib/correcaoMonetaria";
 import { formatMoeda } from "@/lib/format";
 import type { PontoSelecionado } from "@/types/setor";
 
@@ -16,6 +17,8 @@ interface DetailPanelProps {
   onCancelarAdicao: () => void;
   onRemover: (cdSetor: string) => void;
   onLimpar: () => void;
+  /** Corrige a renda bruta do Censo pra valores de hoje. Padrão: 1 (sem correção). */
+  fatorCorrecao?: number;
 }
 
 export function DetailPanel({
@@ -27,6 +30,7 @@ export function DetailPanel({
   onCancelarAdicao,
   onRemover,
   onLimpar,
+  fatorCorrecao = 1,
 }: DetailPanelProps) {
   const [detalhesAbertos, setDetalhesAbertos] = useState(false);
 
@@ -68,7 +72,7 @@ export function DetailPanel({
                   <div className="min-w-0 flex-1">
                     <p className="line-clamp-2 text-sm leading-snug font-medium">{ponto.rotulo}</p>
                     <p className="text-xs text-muted-foreground">
-                      Renda média {formatMoeda(ponto.setor.rendaMedia)}
+                      Renda média {formatMoeda(corrigirRenda(ponto.setor.rendaMedia, fatorCorrecao))}
                     </p>
                   </div>
                   <Button
@@ -115,7 +119,12 @@ export function DetailPanel({
             </Button>
           </div>
 
-          <ComparacaoModal open={detalhesAbertos} onOpenChange={setDetalhesAbertos} pontos={pontos} />
+          <ComparacaoModal
+            open={detalhesAbertos}
+            onOpenChange={setDetalhesAbertos}
+            pontos={pontos}
+            fatorCorrecao={fatorCorrecao}
+          />
         </>
       )}
     </aside>

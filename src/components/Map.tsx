@@ -126,6 +126,8 @@ interface MapViewProps {
   permitirSelecao?: boolean;
   /** false esconde a legenda de classes econômicas. Padrão: true. */
   mostrarLegenda?: boolean;
+  /** Corrige a renda bruta do Censo pra valores de hoje antes de colorir o choropleth. Padrão: 1 (sem correção). */
+  fatorCorrecao?: number;
   /**
    * Ctrl + rolagem dá zoom; rolagem simples passa pra página. Pro mapa que fica dentro de
    * uma área rolável (mini-mapa do modal), senão a roda do mouse sobre ele "prende" a rolagem.
@@ -137,7 +139,12 @@ function rendaPropFor(campo: RendaCampo) {
   return campo === "rendaMedia" ? PROP_RENDA_MEDIA : PROP_RENDA_MEDIANA;
 }
 
-function fillColorExpression(campo: RendaCampo): maplibregl.ExpressionSpecification {
+/**
+ * `fator` corrige a renda bruta do Censo (2022) pra valores de hoje antes de comparar com os
+ * cortes ABEP — os cortes (`ABEP_CLASSES`) já são valores atuais, então é a renda que precisa
+ * subir, não os cortes descer. O dado bruto no tile nunca é alterado, só o cálculo da cor.
+ */
+function fillColorExpression(campo: RendaCampo, fator: number): maplibregl.ExpressionSpecification {
   const prop = rendaPropFor(campo);
   const [primeira, ...resto] = ABEP_CLASSES;
   const stops = resto.flatMap(({ min, cor }) => [min as number, cor]);
@@ -145,7 +152,7 @@ function fillColorExpression(campo: RendaCampo): maplibregl.ExpressionSpecificat
     "case",
     ["!", ["has", prop]],
     SEM_DADOS_COR,
-    ["step", ["to-number", ["get", prop], 0], primeira.cor, ...stops],
+    ["step", ["*", ["to-number", ["get", prop], 0], fator], primeira.cor, ...stops],
   ] as maplibregl.ExpressionSpecification;
 }
 
@@ -171,6 +178,7 @@ export function MapView({
   permitirSelecao = true,
   mostrarLegenda = true,
   gestosCooperativos = false,
+  fatorCorrecao = 1,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -186,6 +194,12 @@ export function MapView({
   const setoresRef = useRef(setoresSelecionados);
   const poisRef = useRef<Poi[]>(pois ?? []);
   const fitPendenteRef = useRef<FitTarget | null>(null);
+  // O estilo do Mapbox é buscado por fetch antes da camada de fill existir — se o fator de
+  // correção chegar antes disso, o efeito abaixo mediria a camada como inexistente e desistiria
+  // pra sempre (o fator só muda uma vez). Por isso a cor inicial lê a ref, não o parâmetro do
+  // momento do mount: não importa quem termina primeiro, a camada nasce com o valor mais atual.
+  const rendaCampoRef = useRef(rendaCampo);
+  const fatorCorrecaoRef = useRef(fatorCorrecao);
 
   useEffect(() => {
     onSelectSetorRef.current = onSelectSetor;
@@ -287,7 +301,7 @@ export function MapView({
             source: SOURCE_ID,
             "source-layer": SOURCE_LAYER,
             paint: {
-              "fill-color": fillColorExpression(rendaCampo),
+              "fill-color": fillColorExpression(rendaCampoRef.current, fatorCorrecaoRef.current),
               "fill-opacity": rendaOpacidade,
             },
           },
@@ -408,10 +422,12 @@ export function MapView({
   }, []);
 
   useEffect(() => {
+    rendaCampoRef.current = rendaCampo;
+    fatorCorrecaoRef.current = fatorCorrecao;
     const map = mapRef.current;
     if (!map || !map.getLayer(FILL_LAYER_ID)) return;
-    map.setPaintProperty(FILL_LAYER_ID, "fill-color", fillColorExpression(rendaCampo));
-  }, [rendaCampo]);
+    map.setPaintProperty(FILL_LAYER_ID, "fill-color", fillColorExpression(rendaCampo, fatorCorrecao));
+  }, [rendaCampo, fatorCorrecao]);
 
   useEffect(() => {
     const map = mapRef.current;

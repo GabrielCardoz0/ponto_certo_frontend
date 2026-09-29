@@ -25,9 +25,11 @@ interface ComparacaoModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pontos: PontoSelecionado[];
+  /** Corrige a renda bruta do Censo pra valores de hoje. Padrão: 1 (sem correção). */
+  fatorCorrecao?: number;
 }
 
-export function ComparacaoModal({ open, onOpenChange, pontos }: ComparacaoModalProps) {
+export function ComparacaoModal({ open, onOpenChange, pontos, fatorCorrecao = 1 }: ComparacaoModalProps) {
   const total = pontos.length;
 
   return (
@@ -38,7 +40,7 @@ export function ComparacaoModal({ open, onOpenChange, pontos }: ComparacaoModalP
         </DialogHeader>
 
         {/* Monta só com o modal aberto: cada abertura começa do zero (mapa, ponto ativo, cache). */}
-        <ConteudoComparacao pontos={pontos} />
+        <ConteudoComparacao pontos={pontos} fatorCorrecao={fatorCorrecao} />
 
         <DialogFooter className="items-center sm:justify-between">
           <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
@@ -56,7 +58,13 @@ export function ComparacaoModal({ open, onOpenChange, pontos }: ComparacaoModalP
   );
 }
 
-function ConteudoComparacao({ pontos }: { pontos: PontoSelecionado[] }) {
+function ConteudoComparacao({
+  pontos,
+  fatorCorrecao,
+}: {
+  pontos: PontoSelecionado[];
+  fatorCorrecao: number;
+}) {
   const [comparacao, setComparacao] = useState<Comparacao | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -93,8 +101,8 @@ function ConteudoComparacao({ pontos }: { pontos: PontoSelecionado[] }) {
   }, [idsKey]);
 
   const tabela = useMemo(
-    () => (comparacao ? montarTabelaComparativa(pontos, comparacao) : null),
-    [pontos, comparacao]
+    () => (comparacao ? montarTabelaComparativa(pontos, comparacao, fatorCorrecao) : null),
+    [pontos, comparacao, fatorCorrecao]
   );
 
   function pedirEnquadramento(bounds: FitTarget["bounds"]) {
@@ -159,6 +167,7 @@ function ConteudoComparacao({ pontos }: { pontos: PontoSelecionado[] }) {
           permitirSelecao={false}
           mostrarLegenda={false}
           gestosCooperativos
+          fatorCorrecao={fatorCorrecao}
         />
         {carregandoPois && (
           <p className="pointer-events-none absolute top-3 left-3 flex items-center gap-1.5 rounded-md border border-border bg-background/90 px-2.5 py-1 text-xs text-muted-foreground">
@@ -178,7 +187,12 @@ function ConteudoComparacao({ pontos }: { pontos: PontoSelecionado[] }) {
         {/* 1 ponto: relatório em cartões, mais fácil de ler que uma tabela de 1 coluna só.
             2+ pontos: mantém a tabela comparativa (o formato de cartões não foi desenhado pra N colunas). */}
         {tabela && comparacao && pontos.length === 1 && comparacao.setores[0] ? (
-          <RelatorioPontoUnico ponto={pontos[0]} setor={comparacao.setores[0]} raioMetros={comparacao.raioMetros} />
+          <RelatorioPontoUnico
+            ponto={pontos[0]}
+            setor={comparacao.setores[0]}
+            raioMetros={comparacao.raioMetros}
+            fatorCorrecao={fatorCorrecao}
+          />
         ) : (
           tabela && (
             <div className="flex flex-col gap-6 pb-2">

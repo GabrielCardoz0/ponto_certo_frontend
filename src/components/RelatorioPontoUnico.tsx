@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Bus, GraduationCap, HeartPulse, MapPin, ShoppingBag, Trees } from "lucide-react";
 import { InfoIcone } from "@/components/InfoIcone";
 import { classeEconomica } from "@/lib/abep";
+import { corrigirRenda } from "@/lib/correcaoMonetaria";
 import { formatMoeda, formatNumero } from "@/lib/format";
 import {
   formatDistancia,
@@ -16,6 +17,8 @@ interface RelatorioPontoUnicoProps {
   ponto: PontoSelecionado;
   setor: SetorComPois;
   raioMetros: number;
+  /** Corrige a renda bruta do Censo pra valores de hoje. Padrão: 1 (sem correção). */
+  fatorCorrecao?: number;
 }
 
 const COR_MASCULINA = "#2563eb";
@@ -132,8 +135,10 @@ function BarraProgresso({
   );
 }
 
-export function RelatorioPontoUnico({ ponto, setor, raioMetros }: RelatorioPontoUnicoProps) {
-  const classe = classeEconomica(setor.rendaMedia);
+export function RelatorioPontoUnico({ ponto, setor, raioMetros, fatorCorrecao = 1 }: RelatorioPontoUnicoProps) {
+  const rendaMedia = corrigirRenda(setor.rendaMedia, fatorCorrecao);
+  const rendaMediana = corrigirRenda(setor.rendaMediana, fatorCorrecao);
+  const classe = classeEconomica(rendaMedia);
   const cv = setor.coefVariacaoRenda;
   const homogeneidade =
     cv === null
@@ -209,17 +214,17 @@ export function RelatorioPontoUnico({ ponto, setor, raioMetros }: RelatorioPonto
       {/* Cartão de destaque: a renda é a primeira coisa lida, não uma linha entre outras. */}
       <section className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-4">
         <div>
-          <p className="text-3xl font-bold tabular-nums">{formatMoeda(setor.rendaMedia)}</p>
+          <p className="text-3xl font-bold tabular-nums">{formatMoeda(rendaMedia)}</p>
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             Renda média domiciliar
-            <InfoIcone texto="Renda média dos domicílios do setor censitário, em valores do Censo 2022 — ainda sem correção pela inflação até a data de hoje." />
+            <InfoIcone texto="Renda média dos domicílios do setor censitário, corrigida do valor bruto do Censo 2022 pra hoje pelo IPCA acumulado." />
           </span>
         </div>
         <div>
-          <p className="text-xl font-semibold tabular-nums">{formatMoeda(setor.rendaMediana)}</p>
+          <p className="text-xl font-semibold tabular-nums">{formatMoeda(rendaMediana)}</p>
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             Renda mediana
-            <InfoIcone texto="Valor que divide os domicílios do setor ao meio: metade tem renda maior, metade tem renda menor. Menos sensível a valores extremos do que a média." />
+            <InfoIcone texto="Valor que divide os domicílios do setor ao meio: metade tem renda maior, metade tem renda menor. Menos sensível a valores extremos do que a média. Também corrigida pelo IPCA acumulado." />
           </span>
         </div>
         {classe && (
@@ -230,7 +235,7 @@ export function RelatorioPontoUnico({ ponto, setor, raioMetros }: RelatorioPonto
             >
               Classe {classe.label}
             </span>
-            <InfoIcone texto="Classificação econômica ABEP (A1 a DE), calculada a partir da faixa de renda média do setor." />
+            <InfoIcone texto="Classificação econômica ABEP (A1 a DE), calculada a partir da renda média do setor já corrigida pelo IPCA." />
           </span>
         )}
         {homogeneidade && (

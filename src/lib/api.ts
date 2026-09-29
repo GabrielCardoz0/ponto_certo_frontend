@@ -174,3 +174,13 @@ export function getSimilares(cdSetor: string, limit = 10, raioExclusaoKm = 50) {
     `/setores/${cdSetor}/similares?limit=${limit}&raioExclusaoKm=${raioExclusaoKm}`
   );
 }
+
+/** Fator de correção monetária acumulado (ex: IPCA) desde a data-base do Censo até `mesReferencia`. */
+export interface FatorCorrecao {
+  fatorAcumulado: number;
+  mesReferencia: string;
+}
+
+export function getFatorCorrecao(indice = "IPCA") {
+  return apiFetch<FatorCorrecao>(`/config/fator-correcao?indice=${encodeURIComponent(indice)}`);
+}
