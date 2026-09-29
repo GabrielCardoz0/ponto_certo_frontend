@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, LogOut, Moon, Sun } from "lucide-react";
+import { Search, LogOut, MessageCircle, Moon, Sun } from "lucide-react";
 import { Marca } from "@/components/Marca";
+import { SuporteModal } from "@/components/SuporteModal";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
@@ -42,6 +43,7 @@ export function TopBar({ onSelectResultado }: TopBarProps) {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aberto, setAberto] = useState(false);
+  const [suporteAberto, setSuporteAberto] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -189,12 +191,19 @@ export function TopBar({ onSelectResultado }: TopBarProps) {
               />
             </div>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setSuporteAberto(true)}>
+              <MessageCircle />
+              Falar com o suporte
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={() => void logout()}>
               <LogOut />
               Sair
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <SuporteModal open={suporteAberto} onOpenChange={setSuporteAberto} />
       </div>
     </header>
   );

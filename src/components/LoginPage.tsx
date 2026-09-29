@@ -1,42 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { Eye, EyeOff, Loader2, MessageCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Marca } from "@/components/Marca";
+import { SuporteModal } from "@/components/SuporteModal";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-
-// TODO: trocar pelo número real do suporte quando o Gabriel passar (formato E.164, só dígitos).
-const WHATSAPP_SUPORTE = "5500000000000";
-const WHATSAPP_SUPORTE_FORMATADO = "(00) 00000-0000";
-
-function EsqueceuSenhaModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Esqueceu a senha?</DialogTitle>
-          <DialogDescription>
-            Não há redefinição automática por enquanto — fale com o suporte pelo WhatsApp pra
-            resetar sua senha.
-          </DialogDescription>
-        </DialogHeader>
-        <Button render={<a href={`https://wa.me/${WHATSAPP_SUPORTE}`} target="_blank" rel="noreferrer" />}>
-          <MessageCircle />
-          WhatsApp · {WHATSAPP_SUPORTE_FORMATADO}
-        </Button>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -125,7 +95,12 @@ export function LoginPage() {
         </Card>
       </div>
 
-      <EsqueceuSenhaModal open={modalSuporteAberto} onOpenChange={setModalSuporteAberto} />
+      <SuporteModal
+        open={modalSuporteAberto}
+        onOpenChange={setModalSuporteAberto}
+        titulo="Esqueceu a senha?"
+        descricao="Não há redefinição automática por enquanto — fale com o suporte pelo WhatsApp pra resetar sua senha."
+      />
     </div>
   );
 }
