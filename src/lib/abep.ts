@@ -22,17 +22,17 @@ export const SEM_DADOS_COR = "#cccccc";
 /** Índices de ABEP_CLASSES em ordem decrescente de renda (A1 primeiro, DE por último). */
 export const ABEP_CLASSES_INDICES_DESC = ABEP_CLASSES.map((_, index) => index).reverse();
 
-/** Recorte de renda completo de uma classe, para exibir no painel de recortes da legenda. */
+/**
+ * Só o limite superior da faixa (não a faixa inteira): "até R$ X" pra quem tem teto,
+ * "acima de R$ X" pra A1, que não tem.
+ */
 export function faixaRendaTooltip(index: number): string {
   const atual = ABEP_CLASSES[index];
   const proxima = ABEP_CLASSES[index + 1];
-  if (atual.min === null) {
-    return `até ${formatMoeda(proxima.min)}`;
-  }
   if (!proxima) {
-    return `a partir de ${formatMoeda(atual.min)}`;
+    return `acima de ${formatMoeda(atual.min)}`;
   }
-  return `${formatMoeda(atual.min)} até ${formatMoeda(proxima.min)}`;
+  return `até ${formatMoeda(proxima.min)}`;
 }
 
 /** Classe econômica de uma renda média (mesmos cortes do choropleth); null sem renda. */
