@@ -134,10 +134,22 @@ export interface Comparacao {
   setores: SetorComPois[];
 }
 
-async function apiFetch<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`);
+/** Chamado quando qualquer request autenticado leva 401 — o AuthContext se inscreve pra deslogar. */
+let ouvinteSessaoPerdida: (() => void) | null = null;
+export function aoPerderSessao(cb: (() => void) | null) {
+  ouvinteSessaoPerdida = cb;
+}
+
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  // credentials:"include" manda o cookie httpOnly da sessão — sem isso, toda rota (protegida
+  // por login) responderia 401 mesmo com o usuário logado.
+  const res = await fetch(`${API_URL}${path}`, { credentials: "include", ...init });
+  if (res.status === 401) {
+    ouvinteSessaoPerdida?.();
+  }
   if (!res.ok) {
-    throw new Error(`Erro na API: ${res.status} ${res.statusText}`);
+    const corpo = await res.json().catch(() => null);
+    throw new Error(corpo?.erro ?? `Erro na API: ${res.status} ${res.statusText}`);
   }
   return res.json();
 }
@@ -183,4 +195,40 @@ export interface FatorCorrecao {
 
 export function getFatorCorrecao(indice = "IPCA") {
   return apiFetch<FatorCorrecao>(`/config/fator-correcao?indice=${encodeURIComponent(indice)}`);
+}
+
+export interface Usuario {
+  id: number;
+  nome: string;
+  email: string;
+  role: string;
+  isFirstAccess: boolean;
+}
+
+/**
+ * Login e logout usam `fetch` direto (não `apiFetch`): um 401 de senha errada não é "sessão
+ * perdida" — não faz sentido disparar o mesmo aviso global que usamos quando uma sessão já
+ * ativa expira no meio do uso.
+ */
+export async function login(email: string, senha: string): Promise<Usuario> {
+  const res = await fetch(`${API_URL}/auth/login`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, senha }),
+  });
+  const corpo = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(corpo?.erro ?? "Não foi possível entrar.");
+  }
+  return corpo.usuario;
+}
+
+export async function logout(): Promise<void> {
+  await fetch(`${API_URL}/auth/logout`, { method: "POST", credentials: "include" });
+}
+
+export async function getUsuarioLogado(): Promise<Usuario> {
+  const { usuario } = await apiFetch<{ usuario: Usuario }>("/auth/me");
+  return usuario;
 }

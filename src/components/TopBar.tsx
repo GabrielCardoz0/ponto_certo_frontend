@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, LogOut, Moon, Sun, User } from "lucide-react";
+import { Search, LogOut, Moon, Sun } from "lucide-react";
+import { Marca } from "@/components/Marca";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
@@ -13,10 +14,20 @@ import {
 import { localizarSetorPorPonto } from "@/lib/api";
 import { buscarEnderecos, type SugestaoEndereco } from "@/lib/geocoding";
 import { useTheme } from "@/components/theme-provider";
+import { useAuth } from "@/hooks/useAuth";
 import type { SetorResumo } from "@/types/setor";
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
+
+/** "Gabriel Cardozo" -> "GC"; um nome só vira só a primeira letra. */
+function iniciaisUsuario(nome: string | undefined): string {
+  if (!nome) return "";
+  const partes = nome.trim().split(/\s+/);
+  const primeira = partes[0]?.[0] ?? "";
+  const ultima = partes.length > 1 ? (partes[partes.length - 1][0] ?? "") : "";
+  return (primeira + ultima).toUpperCase();
+}
 
 interface TopBarProps {
   onSelectResultado: (setor: SetorResumo, rotulo: string) => void;
@@ -24,6 +35,7 @@ interface TopBarProps {
 
 export function TopBar({ onSelectResultado }: TopBarProps) {
   const { theme, setTheme } = useTheme();
+  const { usuario, logout } = useAuth();
   const isDark = theme === "dark";
   const [query, setQuery] = useState("");
   const [resultados, setResultados] = useState<SugestaoEndereco[]>([]);
@@ -100,7 +112,7 @@ export function TopBar({ onSelectResultado }: TopBarProps) {
 
   return (
     <header className="grid h-14 shrink-0 grid-cols-[auto_1fr_auto] items-center gap-4 border-b border-border bg-background px-4">
-      <span className="shrink-0 text-base font-semibold tracking-tight">Ponto Certo</span>
+      <Marca />
 
       <div className="flex justify-center">
         <div ref={containerRef} className="relative w-full max-w-md">
@@ -150,25 +162,19 @@ export function TopBar({ onSelectResultado }: TopBarProps) {
 
       <div className="justify-self-end">
         <DropdownMenu>
-          <DropdownMenuTrigger>
+          <DropdownMenuTrigger className="cursor-pointer">
             <Avatar>
-              <AvatarFallback>
-                <User className="size-4" />
-              </AvatarFallback>
+              <AvatarFallback>{iniciaisUsuario(usuario?.nome)}</AvatarFallback>
             </Avatar>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
             <div className="flex items-center gap-2.5 px-1.5 py-1.5">
               <Avatar size="lg">
-                <AvatarFallback>
-                  <User className="size-4" />
-                </AvatarFallback>
+                <AvatarFallback>{iniciaisUsuario(usuario?.nome)}</AvatarFallback>
               </Avatar>
               <div className="flex min-w-0 flex-col">
-                <span className="truncate text-sm font-medium">Usuário</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  usuario@pontocerto.com
-                </span>
+                <span className="truncate text-sm font-medium">{usuario?.nome}</span>
+                <span className="truncate text-xs text-muted-foreground">{usuario?.email}</span>
               </div>
             </div>
             <DropdownMenuSeparator />
@@ -183,7 +189,7 @@ export function TopBar({ onSelectResultado }: TopBarProps) {
               />
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive">
+            <DropdownMenuItem variant="destructive" onClick={() => void logout()}>
               <LogOut />
               Sair
             </DropdownMenuItem>

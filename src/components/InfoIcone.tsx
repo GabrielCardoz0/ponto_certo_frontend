@@ -9,7 +9,7 @@ export function InfoIcone({ texto }: { texto: string }) {
         render={
           <button
             type="button"
-            className="text-muted-foreground/60 hover:text-foreground"
+            className="cursor-pointer text-muted-foreground/60 hover:text-foreground"
             aria-label="O que significa este dado"
           />
         }

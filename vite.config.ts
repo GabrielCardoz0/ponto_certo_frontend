@@ -8,6 +8,17 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     host: true,
+    // Sessão é cookie httpOnly (SameSite=Lax): se o front for aberto por um host diferente
+    // do host da API (ex: localhost:5173 falando com 192.168.x.x:3000), o navegador trata
+    // como domínios diferentes e não manda o cookie — login "funciona" mas some no primeiro
+    // F5. Proxy faz toda chamada a /api sair do MESMO host:porta que o front, sempre.
+    proxy: {
+      "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
+    },
   },
   resolve: {
     alias: {

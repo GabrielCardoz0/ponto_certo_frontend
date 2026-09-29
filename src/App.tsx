@@ -22,7 +22,7 @@ export function App() {
 
   const [rendaCampo, setRendaCampo] = useState<RendaCampo>("rendaMedia");
   const [camadaVisivel, setCamadaVisivel] = useState(true);
-  const [rendaOpacidade, setRendaOpacidade] = useState(0.5);
+  const [rendaOpacidade, setRendaOpacidade] = useState(0.45);
   const [flyTarget, setFlyTarget] = useState<FlyTarget | null>(null);
   const fatorCorrecao = useFatorCorrecao();
 

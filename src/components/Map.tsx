@@ -395,12 +395,9 @@ export function MapView({
             onSelectSetorRef.current(cdSetor, { lng, lat });
           });
 
-          map.on("mouseenter", FILL_LAYER_ID, () => {
-            map!.getCanvas().style.cursor = "pointer";
-          });
-          map.on("mouseleave", FILL_LAYER_ID, () => {
-            map!.getCanvas().style.cursor = "";
-          });
+          // Sem cursor "pointer" no hover do setor: como os setores cobrem quase toda a área
+          // visível, isso sobrescrevia o grab/grabbing nativo do MapLibre (a mãozinha do
+          // Google Maps) o mapa inteiro, quase sempre. Deixa o padrão do próprio mapa agir.
         }
 
         carregadoRef.current = true;
