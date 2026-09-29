@@ -207,6 +207,12 @@ function finalizarPopupPoi(popup: maplibregl.Popup, el: HTMLElement, aoFechar?: 
     content.style.boxShadow = "none";
     content.style.padding = "0";
     content.style.border = "none";
+    // O CSS nativo do MapLibre deixa esse elemento com pointer-events:auto. Sem `aoFechar`
+    // (popup de hover, sem botão nem nada clicável) isso intercepta o próprio mouse: o balão
+    // nasce embaixo do cursor, o canvas acha que o mouse saiu, o popup some, o canvas reaparece,
+    // dispara mouseenter de novo — um loop que pisca o cursor entre "pointer" e o default do
+    // navegador. Com `aoFechar` (popup de clique, tem botão de fechar) mantém pointer-events.
+    content.style.pointerEvents = aoFechar ? "auto" : "none";
   }
 
   const tipNativo = raiz.querySelector<HTMLElement>(".maplibregl-popup-tip");
@@ -367,7 +373,9 @@ export async function adicionarCamadasPoi(
     finalizarPopupPoi(popupHover, el);
   });
   map.on("mouseleave", POI_LAYER_ID, () => {
-    map.getCanvas().style.cursor = "";
+    // "pointer", não "" — o padrão parado do mapa (Map.tsx) é pointer, não a mãozinha do
+    // MapLibre; limpar pra "" deixava vazar o cursor grab do CSS por baixo.
+    map.getCanvas().style.cursor = "pointer";
     popupHover?.remove();
     popupHover = null;
   });

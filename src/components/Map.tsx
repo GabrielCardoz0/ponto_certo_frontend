@@ -274,6 +274,17 @@ export function MapView({
 
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 
+      // Cursor padrão do MapLibre é a mãozinha aberta (grab) parado — aqui é o contrário do
+      // Google Maps de propósito: pointer parado (mapa "sem fazer nada"), mãozinha fechada
+      // (grabbing) só enquanto o usuário está realmente arrastando/navegando.
+      map.getCanvas().style.cursor = "pointer";
+      map.on("dragstart", () => {
+        map!.getCanvas().style.cursor = "grabbing";
+      });
+      map.on("dragend", () => {
+        map!.getCanvas().style.cursor = "pointer";
+      });
+
       map.on("load", () => {
         void carregarLayers();
       });
