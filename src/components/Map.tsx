@@ -88,8 +88,15 @@ export type RendaCampo = "rendaMedia" | "rendaMediana";
 export interface FlyTarget {
   lng: number;
   lat: number;
+  /** Limites aproximados do setor (raio equivalente à área) — só pra calcular o zoom do flyTo. */
+  bounds?: BoundsLngLat;
   nonce: number;
 }
+
+/** Zoom nunca sai desse intervalo no flyTo por setor: piso = o que já funcionava bem pra setor
+ * grande antes desse ajuste; teto = zoom máximo dos tiles de setores (gerados até z16). */
+const ZOOM_FLY_MIN = 14;
+const ZOOM_FLY_MAX = 16;
 
 /** Pedido de enquadramento animado; `nonce` novo = novo pedido (mesmo com os mesmos limites). */
 export interface FitTarget {
@@ -438,7 +445,19 @@ export function MapView({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !flyTarget) return;
-    map.flyTo({ center: [flyTarget.lng, flyTarget.lat], zoom: 14, essential: true });
+
+    // Zoom fixo deixava setor pequeno "longe" e setor grande estourando o enquadramento.
+    // cameraForBounds calcula o zoom certo pro tamanho real do setor (raio vindo da área);
+    // o clamp garante que nunca fica pior que o zoom fixo de antes (piso) nem passa do zoom
+    // máximo dos tiles (teto) pra setor minúsculo.
+    let zoom = ZOOM_FLY_MIN;
+    if (flyTarget.bounds) {
+      const camera = map.cameraForBounds(flyTarget.bounds, { padding: PADDING_ENQUADRAMENTO });
+      if (camera?.zoom !== undefined) {
+        zoom = Math.min(ZOOM_FLY_MAX, Math.max(camera.zoom, ZOOM_FLY_MIN));
+      }
+    }
+    map.flyTo({ center: [flyTarget.lng, flyTarget.lat], zoom, essential: true });
   }, [flyTarget]);
 
   useEffect(() => {

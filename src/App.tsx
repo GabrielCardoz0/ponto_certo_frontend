@@ -5,6 +5,7 @@ import { SidebarIcons } from "@/components/SidebarIcons";
 import { DetailPanel } from "@/components/DetailPanel";
 import { getSetor } from "@/lib/api";
 import { useFatorCorrecao } from "@/lib/correcaoMonetaria";
+import { boundsDoRaio, raioDoSetor } from "@/lib/geo";
 import type { Localizacao, PontoSelecionado, Setor, SetorResumo } from "@/types/setor";
 
 /** Máximo de pontos numa comparação (NBR 14653-2: amostra de 3 a 10, idealmente 6). */
@@ -58,7 +59,11 @@ export function App() {
       setModoAdicionar(false);
       if (voar) {
         flyNonce.current += 1;
-        setFlyTarget({ ...localizacao, nonce: flyNonce.current });
+        setFlyTarget({
+          ...localizacao,
+          bounds: boundsDoRaio(localizacao, raioDoSetor(setor.areaKm2)),
+          nonce: flyNonce.current,
+        });
       }
     } catch {
       // Falha ao buscar o setor selecionado — mantém a seleção anterior.

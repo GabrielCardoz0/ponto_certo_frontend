@@ -34,6 +34,16 @@ export function boundsDoRaio(centro: Localizacao, raioMetros: number): BoundsLng
   ];
 }
 
+/**
+ * Raio (m) de um círculo com a mesma área do setor, com uma margem — usado só pra estimar um
+ * enquadramento (não temos o polígono real do setor no front, só a área). `margem` > 1 evita que
+ * o setor fique colado na borda do enquadramento.
+ */
+export function raioDoSetor(areaKm2: number | null, margem = 1.4): number {
+  const area = areaKm2 && areaKm2 > 0 ? areaKm2 : 0.01; // fallback pra setor sem área conhecida
+  return Math.sqrt((area * 1_000_000) / Math.PI) * margem;
+}
+
 export function unirBounds(lista: BoundsLngLat[]): BoundsLngLat {
   return [
     [Math.min(...lista.map((b) => b[0][0])), Math.min(...lista.map((b) => b[0][1]))],
