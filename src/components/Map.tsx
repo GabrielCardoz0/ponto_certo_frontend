@@ -2,6 +2,12 @@ import { useEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { MapLayerMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+// O MapLibre calcula a URL do worker em runtime (new URL(`./${nome}`, import.meta.url) com
+// nome montado por template string) — não é um literal estático, então o Rollup nunca detecta
+// e nunca copia maplibre-gl-worker.mjs pro build de produção (funciona em dev só porque o
+// Vite serve node_modules direto do disco). `?url` força o Vite a tratar isso como asset
+// estático de verdade, e setWorkerUrl() substitui a detecção automática frágil da lib.
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { Protocol } from "pmtiles";
 import { AlertCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -41,15 +47,17 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const MAPBOX_STYLE_URL = `https://api.mapbox.com/styles/v1/mapbox/streets-v12?access_token=${MAPBOX_TOKEN}`;
 
 /**
- * O protocolo `pmtiles://` é global do MapLibre: registrar uma vez só e nunca remover.
- * Com mais de uma instância de mapa na tela (mapa principal + mini-mapa do modal), um
- * `removeProtocol` no cleanup de uma delas quebraria o carregamento de tiles da outra.
+ * Setup global do MapLibre, feito uma vez só e nunca desfeito: o protocolo `pmtiles://` e a
+ * URL do worker. Com mais de uma instância de mapa na tela (mapa principal + mini-mapa do
+ * modal), um `removeProtocol` no cleanup de uma delas quebraria o carregamento de tiles da
+ * outra — por isso nunca remove, só registra uma vez.
  */
-let protocoloPmtilesRegistrado = false;
-function registrarProtocoloPmtiles() {
-  if (protocoloPmtilesRegistrado) return;
+let mapLibreConfiguradoGlobalmente = false;
+function configurarMapLibreGlobalmente() {
+  if (mapLibreConfiguradoGlobalmente) return;
   maplibregl.addProtocol("pmtiles", new Protocol().tile);
-  protocoloPmtilesRegistrado = true;
+  maplibregl.setWorkerUrl(maplibreWorkerUrl);
+  mapLibreConfiguradoGlobalmente = true;
 }
 
 /**
@@ -233,7 +241,7 @@ export function MapView({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    registrarProtocoloPmtiles();
+    configurarMapLibreGlobalmente();
 
     let cancelled = false;
     let map: maplibregl.Map | null = null;
