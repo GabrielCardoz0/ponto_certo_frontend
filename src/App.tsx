@@ -3,7 +3,9 @@ import { MapView, type FlyTarget, type RendaCampo } from "@/components/Map";
 import { TopBar } from "@/components/TopBar";
 import { SidebarIcons } from "@/components/SidebarIcons";
 import { DetailPanel } from "@/components/DetailPanel";
+import { AdminArea } from "@/components/AdminArea";
 import { getSetor } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 import { useFatorCorrecao } from "@/lib/correcaoMonetaria";
 import { boundsDoRaio, raioDoSetor } from "@/lib/geo";
 import type { Localizacao, PontoSelecionado, Setor, SetorResumo } from "@/types/setor";
@@ -16,6 +18,8 @@ function rotuloPadrao(setor: Setor) {
 }
 
 export function App() {
+  const { usuario } = useAuth();
+  const [area, setArea] = useState<"mapa" | "admin">("mapa");
   const [pontos, setPontos] = useState<PontoSelecionado[]>([]);
   const [modoAdicionar, setModoAdicionar] = useState(false);
   const [carregando, setCarregando] = useState(false);
@@ -104,9 +108,15 @@ export function App() {
     [pontos]
   );
 
+  // Guarda no client além do 403 do backend: se o papel não for admin (ex: trocado no
+  // meio da sessão), nunca fica preso na área administrativa.
+  if (area === "admin" && usuario?.role === "admin") {
+    return <AdminArea onVoltar={() => setArea("mapa")} />;
+  }
+
   return (
     <div className="flex h-svh w-screen flex-col overflow-hidden">
-      <TopBar onSelectResultado={handleSelectFromSearch} />
+      <TopBar onSelectResultado={handleSelectFromSearch} onAbrirAdmin={() => setArea("admin")} />
       <div className="flex min-h-0 flex-1">
         <SidebarIcons
           rendaCampo={rendaCampo}

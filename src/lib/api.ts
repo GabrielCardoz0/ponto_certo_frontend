@@ -232,3 +232,43 @@ export async function getUsuarioLogado(): Promise<Usuario> {
   const { usuario } = await apiFetch<{ usuario: Usuario }>("/auth/me");
   return usuario;
 }
+
+/** Área administrativa — tudo aqui exige role "admin" no backend (403 pros demais). */
+export interface UsuarioAdmin {
+  id: number;
+  nome: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export function listarUsuariosAdmin() {
+  return apiFetch<UsuarioAdmin[]>("/admin/usuarios");
+}
+
+export function criarUsuarioAdmin(nome: string, email: string, senha: string) {
+  return apiFetch<UsuarioAdmin>("/admin/usuarios", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome, email, senha }),
+  });
+}
+
+export function alternarAtivoUsuarioAdmin(id: number, isActive: boolean) {
+  return apiFetch<UsuarioAdmin>(`/admin/usuarios/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ isActive }),
+  });
+}
+
+export interface MetricasAdmin {
+  usuariosAtivosSemana: number;
+  eventosPorAcao: Array<{ acao: string; total: number }>;
+  ultimosEventos: Array<{ id: number; acao: string; usuario: string | null; criadoEm: string }>;
+}
+
+export function getMetricasAdmin() {
+  return apiFetch<MetricasAdmin>("/admin/metricas");
+}

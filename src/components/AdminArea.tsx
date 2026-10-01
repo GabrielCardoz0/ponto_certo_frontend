@@ -1,0 +1,346 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { ArrowLeft, Eye, EyeOff, Loader2, Plus } from "lucide-react";
+import { Marca } from "@/components/Marca";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  alternarAtivoUsuarioAdmin,
+  criarUsuarioAdmin,
+  getMetricasAdmin,
+  listarUsuariosAdmin,
+  type MetricasAdmin,
+  type UsuarioAdmin,
+} from "@/lib/api";
+
+/** Rótulo em PT-BR pra cada `acao` gravada em eventos_uso. */
+const ROTULO_ACAO: Record<string, string> = {
+  login: "Login",
+  logout: "Logout",
+  erro: "Erro",
+  setor_selecionado: "Setor selecionado",
+  comparacao_criada: "Comparação criada",
+  pois_visualizados: "POIs visualizados",
+};
+
+function rotuloAcao(acao: string): string {
+  return ROTULO_ACAO[acao] ?? acao;
+}
+
+function formatData(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
+
+function CardMetrica({ rotulo, valor }: { rotulo: string; valor: number }) {
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-1 pt-(--card-spacing)">
+        <span className="text-2xl font-semibold tabular-nums">{valor}</span>
+        <span className="text-xs text-muted-foreground">{rotulo}</span>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface NovoUsuarioModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCriado: (usuario: UsuarioAdmin) => void;
+}
+
+function NovoUsuarioModal({ open, onOpenChange, onCriado }: NovoUsuarioModalProps) {
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  function limpar() {
+    setNome("");
+    setEmail("");
+    setSenha("");
+    setMostrarSenha(false);
+    setErro(null);
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setErro(null);
+    setEnviando(true);
+    try {
+      const usuario = await criarUsuarioAdmin(nome.trim(), email.trim(), senha);
+      onCriado(usuario);
+      onOpenChange(false);
+      limpar();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível criar o usuário.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (!v) limpar();
+      }}
+    >
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Novo usuário</DialogTitle>
+          <DialogDescription>
+            A conta nasce ativa, com papel "usuario". Sem confirmação por e-mail — passe a senha por
+            fora.
+          </DialogDescription>
+        </DialogHeader>
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="admin-nome">Nome</Label>
+            <Input id="admin-nome" required value={nome} onChange={(e) => setNome(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="admin-email">E-mail</Label>
+            <Input
+              id="admin-email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="admin-senha">Senha</Label>
+            <div className="relative">
+              <Input
+                id="admin-senha"
+                type={mostrarSenha ? "text" : "password"}
+                required
+                minLength={8}
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                className="pr-8"
+              />
+              <button
+                type="button"
+                onClick={() => setMostrarSenha((v) => !v)}
+                tabIndex={-1}
+                className="absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+                aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+              >
+                {mostrarSenha ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">Pelo menos 8 caracteres.</p>
+          </div>
+
+          {erro && <p className="text-sm text-destructive">{erro}</p>}
+
+          <DialogFooter>
+            <Button type="submit" disabled={enviando}>
+              {enviando && <Loader2 className="animate-spin" />}
+              Criar usuário
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function AdminArea({ onVoltar }: { onVoltar: () => void }) {
+  const { usuario: usuarioLogado } = useAuth();
+  const [usuarios, setUsuarios] = useState<UsuarioAdmin[] | null>(null);
+  const [metricas, setMetricas] = useState<MetricasAdmin | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [modalAberto, setModalAberto] = useState(false);
+  const [alternando, setAlternando] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    Promise.all([listarUsuariosAdmin(), getMetricasAdmin()])
+      .then(([u, m]) => {
+        if (cancelado) return;
+        setUsuarios(u);
+        setMetricas(m);
+      })
+      .catch(() => {
+        if (!cancelado) setErro("Não foi possível carregar a área administrativa.");
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  async function handleAlternarAtivo(alvo: UsuarioAdmin) {
+    setAlternando(alvo.id);
+    try {
+      const atualizado = await alternarAtivoUsuarioAdmin(alvo.id, !alvo.isActive);
+      setUsuarios((atual) => atual?.map((u) => (u.id === atualizado.id ? atualizado : u)) ?? atual);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível atualizar o usuário.");
+    } finally {
+      setAlternando(null);
+    }
+  }
+
+  return (
+    <div className="flex h-svh w-screen flex-col overflow-hidden bg-muted/30">
+      <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-background px-4">
+        <Marca />
+        <span className="text-sm text-muted-foreground">Área administrativa</span>
+        <Button variant="ghost" size="sm" onClick={onVoltar} className="ml-auto">
+          <ArrowLeft />
+          Voltar ao mapa
+        </Button>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-6">
+        <div className="mx-auto flex max-w-5xl flex-col gap-6">
+          {erro && <p className="text-sm text-destructive">{erro}</p>}
+
+          <section className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold">Métricas da semana</h2>
+            {!metricas ? (
+              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" /> Carregando métricas...
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <CardMetrica rotulo="Usuários ativos" valor={metricas.usuariosAtivosSemana} />
+                {metricas.eventosPorAcao.map((m) => (
+                  <CardMetrica key={m.acao} rotulo={rotuloAcao(m.acao)} valor={m.total} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold">Últimos eventos</h2>
+            <Card size="sm">
+              <CardContent className="overflow-x-auto px-0">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                      <th className="px-4 py-2 font-medium">Usuário</th>
+                      <th className="px-4 py-2 font-medium">Ação</th>
+                      <th className="px-4 py-2 font-medium">Data/hora</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!metricas && (
+                      <tr>
+                        <td colSpan={3} className="px-4 py-3 text-muted-foreground">
+                          Carregando...
+                        </td>
+                      </tr>
+                    )}
+                    {metricas?.ultimosEventos.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-4 py-3 text-muted-foreground">
+                          Nenhum evento registrado ainda.
+                        </td>
+                      </tr>
+                    )}
+                    {metricas?.ultimosEventos.map((evento) => (
+                      <tr key={evento.id} className="border-b border-border last:border-0">
+                        <td className="px-4 py-2">{evento.usuario ?? "—"}</td>
+                        <td className="px-4 py-2">{rotuloAcao(evento.acao)}</td>
+                        <td className="px-4 py-2 text-muted-foreground tabular-nums">
+                          {formatData(evento.criadoEm)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold">Usuários</h2>
+              <Button size="sm" onClick={() => setModalAberto(true)}>
+                <Plus />
+                Novo usuário
+              </Button>
+            </div>
+            <Card size="sm">
+              <CardContent className="overflow-x-auto px-0">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                      <th className="px-4 py-2 font-medium">Nome</th>
+                      <th className="px-4 py-2 font-medium">E-mail</th>
+                      <th className="px-4 py-2 font-medium">Papel</th>
+                      <th className="px-4 py-2 font-medium">Status</th>
+                      <th className="px-4 py-2 font-medium">Criado em</th>
+                      <th className="px-4 py-2 font-medium" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!usuarios && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-3 text-muted-foreground">
+                          Carregando...
+                        </td>
+                      </tr>
+                    )}
+                    {usuarios?.map((u) => (
+                      <tr key={u.id} className="border-b border-border last:border-0">
+                        <td className="px-4 py-2 font-medium">{u.nome}</td>
+                        <td className="px-4 py-2 text-muted-foreground">{u.email}</td>
+                        <td className="px-4 py-2">
+                          <Badge variant="outline">{u.role}</Badge>
+                        </td>
+                        <td className="px-4 py-2">
+                          <Badge variant={u.isActive ? "default" : "secondary"}>
+                            {u.isActive ? "Ativo" : "Desativado"}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground tabular-nums">
+                          {formatData(u.createdAt)}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={alternando === u.id || u.id === usuarioLogado?.id}
+                            title={u.id === usuarioLogado?.id ? "Você não pode desativar a própria conta" : undefined}
+                            onClick={() => void handleAlternarAtivo(u)}
+                          >
+                            {alternando === u.id && <Loader2 className="animate-spin" />}
+                            {u.isActive ? "Desativar" : "Ativar"}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          </section>
+        </div>
+      </div>
+
+      <NovoUsuarioModal
+        open={modalAberto}
+        onOpenChange={setModalAberto}
+        onCriado={(novo) => setUsuarios((atual) => [novo, ...(atual ?? [])])}
+      />
+    </div>
+  );
+}

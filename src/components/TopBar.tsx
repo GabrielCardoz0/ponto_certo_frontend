@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, LogOut, MessageCircle, Moon, Sun } from "lucide-react";
+import { Search, LogOut, MessageCircle, Moon, ShieldUser, Sun } from "lucide-react";
 import { Marca } from "@/components/Marca";
 import { SuporteModal } from "@/components/SuporteModal";
 import { Input } from "@/components/ui/input";
@@ -32,9 +32,10 @@ function iniciaisUsuario(nome: string | undefined): string {
 
 interface TopBarProps {
   onSelectResultado: (setor: SetorResumo, rotulo: string) => void;
+  onAbrirAdmin?: () => void;
 }
 
-export function TopBar({ onSelectResultado }: TopBarProps) {
+export function TopBar({ onSelectResultado, onAbrirAdmin }: TopBarProps) {
   const { theme, setTheme } = useTheme();
   const { usuario, logout } = useAuth();
   const isDark = theme === "dark";
@@ -190,6 +191,15 @@ export function TopBar({ onSelectResultado }: TopBarProps) {
                 onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
               />
             </div>
+            {usuario?.role === "admin" && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onAbrirAdmin}>
+                  <ShieldUser />
+                  Área administrativa
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setSuporteAberto(true)}>
               <MessageCircle />
