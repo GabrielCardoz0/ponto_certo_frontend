@@ -1,6 +1,11 @@
 services:
   ponto-certo-app:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_API_URL: /api
+        VITE_PMTILES_URL: ${VITE_PMTILES_URL}
+        VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN}
     container_name: ponto-certo-app
     restart: unless-stopped
     networks:
