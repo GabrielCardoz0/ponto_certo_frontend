@@ -1,0 +1,17 @@
+services:
+  ponto-certo-app:
+    build: .
+    container_name: ponto-certo-app
+    restart: unless-stopped
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ponto_certo_app.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.ponto_certo_app.entrypoints=websecure"
+      - "traefik.http.routers.ponto_certo_app.tls.certresolver=letsencrypt"
+      - "traefik.http.services.ponto_certo_app.loadbalancer.server.port=80"
+
+networks:
+  traefik:
+    external: true

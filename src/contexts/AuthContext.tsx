@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { aoPerderSessao, getUsuarioLogado, login as loginApi, logout as logoutApi } from "@/lib/api";
+import { aoPerderSessao, getUsuarioLogado, login as loginApi, logout as logoutApi, type Usuario } from "@/lib/api";
 import { AuthContext } from "@/contexts/authContextBase";
 
 // O contexto fica em `authContextBase.ts` e o hook em `@/hooks/useAuth` — separados desse

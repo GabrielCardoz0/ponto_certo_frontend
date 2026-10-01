@@ -92,12 +92,12 @@ function svgIconeGenerico(): string {
 
 function corPorCategoriaExpression(): maplibregl.ExpressionSpecification {
   const stops = Object.entries(COR_POR_CATEGORIA).flatMap(([categoria, cor]) => [categoria, cor]);
-  return ["match", ["get", "categoria"], ...stops, POI_COR_PADRAO] as maplibregl.ExpressionSpecification;
+  return ["match", ["get", "categoria"], ...stops, POI_COR_PADRAO] as unknown as maplibregl.ExpressionSpecification;
 }
 
 function iconePorSubcategoriaExpression(): maplibregl.ExpressionSpecification {
   const pares = Object.keys(SUBCATEGORIA_ICONE).flatMap((sub) => [sub, `icon-${sub}`]);
-  return ["match", ["get", "subcategoria"], ...pares, ICONE_PADRAO_ID] as maplibregl.ExpressionSpecification;
+  return ["match", ["get", "subcategoria"], ...pares, ICONE_PADRAO_ID] as unknown as maplibregl.ExpressionSpecification;
 }
 
 /** Carrega um SVG como imagem registrada no estilo do mapa, pra usar em icon-image. */
