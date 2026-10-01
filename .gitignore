@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Copiado de node_modules/maplibre-gl/dist pelo postinstall (scripts/copiar-worker-maplibre.mjs)
+# — nunca editar à mão, sempre regenerado a partir da versão instalada da lib.
+public/maplibre
+
 # Environment variables
 .env
 .env.*.local

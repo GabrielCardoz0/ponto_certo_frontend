@@ -2,12 +2,6 @@ import { useEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { MapLayerMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-// O MapLibre calcula a URL do worker em runtime (new URL(`./${nome}`, import.meta.url) com
-// nome montado por template string) — não é um literal estático, então o Rollup nunca detecta
-// e nunca copia maplibre-gl-worker.mjs pro build de produção (funciona em dev só porque o
-// Vite serve node_modules direto do disco). `?url` força o Vite a tratar isso como asset
-// estático de verdade, e setWorkerUrl() substitui a detecção automática frágil da lib.
-import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { Protocol } from "pmtiles";
 import { AlertCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -47,6 +41,22 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const MAPBOX_STYLE_URL = `https://api.mapbox.com/styles/v1/mapbox/streets-v12?access_token=${MAPBOX_TOKEN}`;
 
 /**
+ * O MapLibre calcula a URL do worker em runtime (`new URL(`./${nome}`, import.meta.url)`,
+ * nome montado por template string) — o Rollup não detecta esse padrão (só literais estáticos),
+ * então `maplibre-gl-worker.mjs` nunca ia pro build de produção (funcionava em dev só porque o
+ * Vite serve node_modules direto do disco). Pior: esse worker por sua vez importa
+ * `./maplibre-gl-shared.mjs` (90% da lib) por um import relativo de verdade — um `?url` do Vite
+ * copia o arquivo como blob opaco e não resolve esse import de dentro dele.
+ *
+ * Em vez de lutar com bundling, os dois arquivos (do jeito que a lib publica, sem reescrever
+ * nada) ficam em `public/maplibre/` — copiados do node_modules no postinstall (ver
+ * scripts/copiar-worker-maplibre.mjs). O Vite serve `public/` do jeito que está, sem hash, igual
+ * em dev e build — o import relativo entre os dois continua resolvendo certo nos dois arquivos
+ * lado a lado, e setWorkerUrl() substitui a detecção automática frágil da lib.
+ */
+const WORKER_MAPLIBRE_URL = "/maplibre/maplibre-gl-worker.mjs";
+
+/**
  * Setup global do MapLibre, feito uma vez só e nunca desfeito: o protocolo `pmtiles://` e a
  * URL do worker. Com mais de uma instância de mapa na tela (mapa principal + mini-mapa do
  * modal), um `removeProtocol` no cleanup de uma delas quebraria o carregamento de tiles da
@@ -56,7 +66,7 @@ let mapLibreConfiguradoGlobalmente = false;
 function configurarMapLibreGlobalmente() {
   if (mapLibreConfiguradoGlobalmente) return;
   maplibregl.addProtocol("pmtiles", new Protocol().tile);
-  maplibregl.setWorkerUrl(maplibreWorkerUrl);
+  maplibregl.setWorkerUrl(WORKER_MAPLIBRE_URL);
   mapLibreConfiguradoGlobalmente = true;
 }
 
