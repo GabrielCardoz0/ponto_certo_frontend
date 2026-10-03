@@ -1,11 +1,15 @@
 import { Info } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-/** Ícone "!" com tooltip explicando um campo/cartão/linha — reaproveitado no relatório de 1 ponto e na tabela comparativa. */
+/**
+ * Ícone "i" com explicação de um campo/cartão/linha — reaproveitado no relatório de 1 ponto e
+ * na tabela comparativa. Popover (clique/toque), não Tooltip (hover): num tablet não existe
+ * hover, então um tooltip hover-only nunca abre no toque.
+ */
 export function InfoIcone({ texto }: { texto: string }) {
   return (
-    <Tooltip>
-      <TooltipTrigger
+    <Popover>
+      <PopoverTrigger
         render={
           <button
             type="button"
@@ -15,10 +19,10 @@ export function InfoIcone({ texto }: { texto: string }) {
         }
       >
         <Info className="size-3.5" />
-      </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-64 text-left">
+      </PopoverTrigger>
+      <PopoverContent side="top" className="w-64 text-sm text-left">
         {texto}
-      </TooltipContent>
-    </Tooltip>
+      </PopoverContent>
+    </Popover>
   );
 }

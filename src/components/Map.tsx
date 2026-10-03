@@ -4,7 +4,7 @@ import type { MapLayerMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
 import { AlertCircle } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { adicionarCamadasPoi } from "@/components/mapa/poi";
 import {
   ABEP_CLASSES,
@@ -520,8 +520,11 @@ export function MapView({
         <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-md border border-border bg-background/90 px-3 py-2 text-xs shadow-sm backdrop-blur">
           <div className="mb-1.5 flex items-center gap-1 font-medium">
             Classe econômica · renda {rendaCampo === "rendaMedia" ? "média" : "mediana"}
-            <Tooltip>
-              <TooltipTrigger
+            {/* Popover (clique/toque), não Tooltip (hover): num tablet não existe hover, então
+                um tooltip hover-only nunca abre no toque — popover abre com o mesmo gesto de
+                clique em qualquer dispositivo. */}
+            <Popover>
+              <PopoverTrigger
                 render={
                   <button
                     type="button"
@@ -531,8 +534,8 @@ export function MapView({
               >
                 <AlertCircle className="size-3.5" />
                 <span className="sr-only">Ver recortes de renda por classe</span>
-              </TooltipTrigger>
-              <TooltipContent side="top" align="start" className="w-60 flex-col items-stretch gap-1 p-3">
+              </PopoverTrigger>
+              <PopoverContent side="top" align="start" className="w-60 gap-1 p-3">
                 <div className="mb-0.5 font-medium">Recortes de renda por classe</div>
                 {ABEP_CLASSES_INDICES_DESC.map((index) => {
                   const classe = ABEP_CLASSES[index];
@@ -543,12 +546,12 @@ export function MapView({
                         style={{ backgroundColor: classe.cor }}
                       />
                       <span className="w-6 shrink-0 font-medium">{classe.label}</span>
-                      <span className="text-background/70">{faixaRendaTooltip(index)}</span>
+                      <span className="text-muted-foreground">{faixaRendaTooltip(index)}</span>
                     </div>
                   );
                 })}
-              </TooltipContent>
-            </Tooltip>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="flex items-center gap-2">
             {ABEP_CLASSES_INDICES_DESC.map((index) => {
