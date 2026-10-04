@@ -116,7 +116,7 @@ export function TabelaSecao({ secao, colunas, pontoAtivo, onSelecionarPonto }: T
                   data-cd-setor={coluna.cdSetor}
                   className={`h-auto border-b border-border px-3 py-2 align-top whitespace-normal ${destaque(i)}`}
                 >
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-center gap-2">
                     <BadgePonto
                       numero={coluna.numero}
                       ativo={coluna.cdSetor === pontoAtivo}
