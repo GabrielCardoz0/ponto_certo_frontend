@@ -87,7 +87,8 @@ function Indicador({
   corValor?: string;
 }) {
   return (
-    <Card size="sm">
+    // Sem borda (ring-0): o fundo levemente cinza separa o card do restante.
+    <Card size="sm" className="bg-muted/40 ring-0">
       <CardHeader className="gap-1">
         <CardDescription className="flex items-center gap-1 text-xs font-medium">
           {rotulo}
