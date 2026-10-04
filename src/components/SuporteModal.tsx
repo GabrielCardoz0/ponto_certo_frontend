@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/dialog";
 
 // TODO: trocar pelo número real do suporte quando o Gabriel passar (formato E.164, só dígitos).
-export const WHATSAPP_SUPORTE = "5500000000000";
-export const WHATSAPP_SUPORTE_FORMATADO = "(00) 00000-0000";
+export const WHATSAPP_SUPORTE = "5511994703386";
+export const WHATSAPP_SUPORTE_FORMATADO = "(11) 99470-3386";
 
 interface SuporteModalProps {
   open: boolean;
