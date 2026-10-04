@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from "react";
-import { CircleAlert, Loader2, RotateCw } from "lucide-react";
+import { ChartNoAxesCombined, CircleAlert, Loader2, RotateCw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MapView, type FitTarget } from "@/components/Map";
 import { TabelaSecao } from "@/components/TabelaSecao";
 import { RelatorioPontoUnico } from "@/components/RelatorioPontoUnico";
+import { EstatisticasPonto } from "@/components/EstatisticasPonto";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/hooks/useAuth";
 import { compararSetores, getPois } from "@/lib/api";
 import { BOUNDS_BRASIL, boundsDoRaio, enquadramentoDosPontos } from "@/lib/geo";
 import { montarTabelaComparativa } from "@/utils/tabelaComparativa";
@@ -72,6 +75,8 @@ function ConteudoComparacao({
   fatorCorrecao: number;
   rendaOpacidade: number;
 }) {
+  const { usuario } = useAuth();
+  const ehAdmin = usuario?.role === "admin";
   const [comparacao, setComparacao] = useState<Comparacao | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -224,12 +229,38 @@ function ConteudoComparacao({
         {/* 1 ponto: relatório em cartões, mais fácil de ler que uma tabela de 1 coluna só.
             2+ pontos: mantém a tabela comparativa (o formato de cartões não foi desenhado pra N colunas). */}
         {tabela && comparacao && pontos.length === 1 && comparacao.setores[0] ? (
-          <RelatorioPontoUnico
-            ponto={pontos[0]}
-            setor={comparacao.setores[0]}
-            raioMetros={comparacao.raioMetros}
-            fatorCorrecao={fatorCorrecao}
-          />
+          ehAdmin ? (
+            // Só admin vê a aba de estatísticas (modelagem da renda — ainda em validação).
+            <Tabs defaultValue="relatorio" className="gap-4">
+              <TabsList variant="line" className="h-auto justify-start">
+                <TabsTrigger value="relatorio" className="flex-none px-3 text-xs">
+                  Relatório
+                </TabsTrigger>
+                <TabsTrigger value="estatisticas" className="flex-none px-3 text-xs">
+                  <ChartNoAxesCombined />
+                  Ver estatísticas
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="relatorio">
+                <RelatorioPontoUnico
+                  ponto={pontos[0]}
+                  setor={comparacao.setores[0]}
+                  raioMetros={comparacao.raioMetros}
+                  fatorCorrecao={fatorCorrecao}
+                />
+              </TabsContent>
+              <TabsContent value="estatisticas">
+                <EstatisticasPonto setor={comparacao.setores[0]} fatorCorrecao={fatorCorrecao} />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <RelatorioPontoUnico
+              ponto={pontos[0]}
+              setor={comparacao.setores[0]}
+              raioMetros={comparacao.raioMetros}
+              fatorCorrecao={fatorCorrecao}
+            />
+          )
         ) : (
           tabela && (
             <div className="flex flex-col gap-6 pb-2">
