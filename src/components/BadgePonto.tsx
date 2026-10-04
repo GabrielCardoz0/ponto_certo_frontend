@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CLASSE_BADGE_PONTO } from "@/lib/badge";
+import { classeBadgePonto } from "@/lib/badge";
 
 interface BadgePontoProps {
   numero: number;
@@ -13,15 +13,15 @@ interface BadgePontoProps {
 
 /**
  * Selo numerado do ponto (Badge/Button do shadcn com o mesmo visual do marcador no mapa —
- * lá o marcador é DOM puro do MapLibre e usa a mesma CLASSE_BADGE_PONTO).
+ * lá o marcador é DOM puro do MapLibre e usa a mesma classeBadgePonto).
  */
 export function BadgePonto({ numero, ativo = false, onClick, titulo }: BadgePontoProps) {
-  const classe = CLASSE_BADGE_PONTO.replace("ring-background", ativo ? "ring-foreground" : "ring-background");
+  const classe = classeBadgePonto(ativo);
 
   if (!onClick) return <Badge className={`${classe} h-6 px-0`}>{numero}</Badge>;
 
   return (
-    <Button size="icon-xs" onClick={onClick} title={titulo} className={`${classe} transition-transform hover:scale-110`}>
+    <Button size="icon-xs" onClick={onClick} title={titulo} className={`${classe} hover:opacity-80`}>
       {numero}
     </Button>
   );

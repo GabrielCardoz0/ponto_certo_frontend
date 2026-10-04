@@ -13,7 +13,7 @@ import {
   SEM_DADOS_COR,
   faixaRendaTooltip,
 } from "@/lib/abep";
-import { CLASSE_BADGE_PONTO } from "@/lib/badge";
+import { classeBadgePonto } from "@/lib/badge";
 import { useFatorCorrecao } from "@/lib/correcaoMonetaria";
 import { VISAO_BRASIL, type BoundsLngLat, type Enquadramento } from "@/lib/geo";
 import { fonteRenda } from "@/lib/rotulosRenda";
@@ -399,10 +399,7 @@ export function MapView({
           markersRef.current = pontosRef.current.map((ponto) => {
             const ativo = pontoAtivoRef.current === ponto.numero;
             const el = document.createElement("div");
-            el.className = `${CLASSE_BADGE_PONTO.replace(
-              "ring-background",
-              ativo ? "ring-foreground scale-125" : "ring-background"
-            )} transition-transform`;
+            el.className = classeBadgePonto(ativo);
             el.textContent = String(ponto.numero);
             if (onPontoClickRef.current) {
               el.classList.add("cursor-pointer");

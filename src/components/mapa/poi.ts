@@ -327,7 +327,9 @@ export async function adicionarCamadasPoi(
       source: POI_SOURCE_ID,
       layout: {
         "icon-image": iconePorSubcategoriaExpression(),
-        "icon-size": 0.9,
+        // Ícone de 28px: a 0.9 ocupava ~25px e cobria o mapa. Menor e crescendo com o zoom
+        // (z13 ≈ 14px, z15 ≈ 17px, z17 ≈ 21px) — legível sem esconder ruas e setores.
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.5, 15, 0.6, 17, 0.75],
         // Sem decluttering: todo POI aparece mesmo sobrepondo outro.
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
