@@ -21,6 +21,10 @@ interface TabelaSecaoProps {
 
 const DESTAQUE_COLUNA = "bg-accent/60";
 
+/** Coluna fixa dos rótulos e largura mínima de cada ponto — iguais em todas as seções. */
+const LARGURA_ROTULOS = "16rem";
+const LARGURA_MIN_PONTO = "15rem";
+
 /** Maior fatia (%) de qualquer faixa etária entre todos os pontos da linha. */
 function maiorFatia(celulas: CelulaTabela[]): number {
   return Math.max(
@@ -84,12 +88,24 @@ export function TabelaSecao({ secao, colunas, pontoAtivo, onSelecionarPonto }: T
       </h3>
 
       <div ref={containerRef} className="overflow-hidden rounded-md border border-border">
-        <Table className="w-max min-w-full border-separate border-spacing-0">
+        {/* table-fixed + <colgroup> iguais em TODAS as seções: sem isso cada tabela calculava a
+            largura das colunas pelo próprio conteúdo (uma com texto longo, outra com a
+            distribuição etária) e os pontos ficavam em posições diferentes de uma seção pra outra. */}
+        <Table
+          className="table-fixed border-separate border-spacing-0"
+          style={{ width: `max(100%, calc(${LARGURA_ROTULOS} + ${colunas.length} * ${LARGURA_MIN_PONTO}))` }}
+        >
+          <colgroup>
+            <col style={{ width: LARGURA_ROTULOS }} />
+            {colunas.map((c) => (
+              <col key={c.cdSetor} />
+            ))}
+          </colgroup>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead
                 data-coluna-fixa
-                className="sticky left-0 z-20 h-auto w-64 min-w-52 border-b border-border bg-popover px-3 py-2 text-xs text-muted-foreground"
+                className="sticky left-0 z-20 h-auto border-b border-border bg-popover px-3 py-2 text-xs text-muted-foreground"
               >
                 Variável
               </TableHead>
@@ -98,7 +114,7 @@ export function TabelaSecao({ secao, colunas, pontoAtivo, onSelecionarPonto }: T
                 <TableHead
                   key={coluna.cdSetor}
                   data-cd-setor={coluna.cdSetor}
-                  className={`h-auto min-w-44 border-b border-border px-3 py-2 align-top whitespace-normal ${destaque(i)}`}
+                  className={`h-auto border-b border-border px-3 py-2 align-top whitespace-normal ${destaque(i)}`}
                 >
                   <div className="flex items-start gap-2">
                     <BadgePonto
@@ -145,7 +161,7 @@ function Linha({
   if (linha.tipo === "grupo") {
     return (
       <TableRow className="hover:bg-transparent">
-        <TableHead className="sticky left-0 z-10 h-auto w-64 min-w-52 border-b border-border bg-muted px-3 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        <TableHead className="sticky left-0 z-10 h-auto border-b border-border bg-muted px-3 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           <span className="flex items-center gap-1.5">
             {linha.titulo}
             {linha.info && <InfoIcone texto={linha.info} />}
@@ -162,7 +178,7 @@ function Linha({
     <TableRow>
       <TableHead
         scope="row"
-        className="sticky left-0 z-10 h-auto w-64 min-w-52 border-b border-border bg-popover px-3 py-2 align-top font-normal whitespace-normal text-muted-foreground"
+        className="sticky left-0 z-10 h-auto border-b border-border bg-popover px-3 py-2 align-top font-normal whitespace-normal text-muted-foreground"
       >
         <span className="flex items-center gap-1.5">
           {linha.rotulo}
@@ -174,7 +190,7 @@ function Linha({
       {linha.celulas.map((celula, i) => (
         <TableCell
           key={i}
-          className={`${linha.tipo === "piramide" ? "min-w-60 py-3" : "min-w-44 py-2"} border-b border-border px-3 align-top whitespace-normal tabular-nums ${destaque(i)}`}
+          className={`${linha.tipo === "piramide" ? "py-3" : "py-2"} border-b border-border px-3 align-top whitespace-normal tabular-nums ${destaque(i)}`}
         >
           <Celula celula={celula} maximo={maximo} />
         </TableCell>
