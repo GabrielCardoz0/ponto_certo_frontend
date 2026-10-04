@@ -29,9 +29,11 @@ interface ComparacaoModalProps {
   pontos: PontoSelecionado[];
   /** Corrige a renda bruta do Censo pra valores de hoje. Padrão: 1 (sem correção). */
   fatorCorrecao?: number;
+  /** Mesma opacidade que o usuário definiu no mapa principal. */
+  rendaOpacidade?: number;
 }
 
-export function ComparacaoModal({ open, onOpenChange, pontos, fatorCorrecao = 1 }: ComparacaoModalProps) {
+export function ComparacaoModal({ open, onOpenChange, pontos, fatorCorrecao = 1, rendaOpacidade = 0.45 }: ComparacaoModalProps) {
   const total = pontos.length;
 
   return (
@@ -42,7 +44,7 @@ export function ComparacaoModal({ open, onOpenChange, pontos, fatorCorrecao = 1 
         </DialogHeader>
 
         {/* Monta só com o modal aberto: cada abertura começa do zero (mapa, ponto ativo, cache). */}
-        <ConteudoComparacao pontos={pontos} fatorCorrecao={fatorCorrecao} />
+        <ConteudoComparacao pontos={pontos} fatorCorrecao={fatorCorrecao} rendaOpacidade={rendaOpacidade} />
 
         <DialogFooter className="items-center sm:justify-between">
           <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
@@ -64,9 +66,11 @@ export function ComparacaoModal({ open, onOpenChange, pontos, fatorCorrecao = 1 
 function ConteudoComparacao({
   pontos,
   fatorCorrecao,
+  rendaOpacidade,
 }: {
   pontos: PontoSelecionado[];
   fatorCorrecao: number;
+  rendaOpacidade: number;
 }) {
   const [comparacao, setComparacao] = useState<Comparacao | null>(null);
   const [loading, setLoading] = useState(true);
@@ -167,7 +171,7 @@ function ConteudoComparacao({
           onSelectSetor={() => {}}
           flyTarget={null}
           camadaVisivel
-          rendaOpacidade={0.6}
+          rendaOpacidade={rendaOpacidade}
           setoresSelecionados={setoresSelecionados}
           pontos={pontosNoMapa}
           pois={poisAtivos}

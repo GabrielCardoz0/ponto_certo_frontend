@@ -21,6 +21,8 @@ interface DetailPanelProps {
   onLimpar: () => void;
   /** Corrige a renda bruta do Censo pra valores de hoje. Padrão: 1 (sem correção). */
   fatorCorrecao?: number;
+  /** Opacidade das cores no mapa, escolhida pelo usuário — o mapa do modal segue a mesma. */
+  rendaOpacidade?: number;
 }
 
 export function DetailPanel({
@@ -33,6 +35,7 @@ export function DetailPanel({
   onRemover,
   onLimpar,
   fatorCorrecao = 1,
+  rendaOpacidade,
 }: DetailPanelProps) {
   const [detalhesAbertos, setDetalhesAbertos] = useState(false);
 
@@ -147,6 +150,7 @@ export function DetailPanel({
               onOpenChange={setDetalhesAbertos}
               pontos={pontos}
               fatorCorrecao={fatorCorrecao}
+              rendaOpacidade={rendaOpacidade}
             />
           </>
         )}

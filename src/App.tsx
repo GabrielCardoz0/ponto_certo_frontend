@@ -193,6 +193,7 @@ export function App() {
           onRemover={handleRemover}
           onLimpar={handleLimpar}
           fatorCorrecao={fatorCorrecao.fatorAcumulado}
+          rendaOpacidade={rendaOpacidade}
         />
       </div>
     </div>
