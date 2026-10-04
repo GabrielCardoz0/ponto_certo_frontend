@@ -43,7 +43,7 @@ export function SidebarIcons({
               className="justify-start"
               onClick={() => onChangeRendaCampo("rendaMedia")}
             >
-              Renda média
+              Renda média do responsável
             </Button>
             <Button
               variant={rendaCampo === "rendaMediana" ? "secondary" : "ghost"}
@@ -51,7 +51,7 @@ export function SidebarIcons({
               className="justify-start"
               onClick={() => onChangeRendaCampo("rendaMediana")}
             >
-              Renda mediana
+              Renda mediana do responsável
             </Button>
           </div>
 

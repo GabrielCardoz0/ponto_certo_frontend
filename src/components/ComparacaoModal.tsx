@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { CircleAlert, Loader2, RotateCw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { MapView, type FitTarget } from "@/components/Map";
 import { TabelaSecao } from "@/components/TabelaSecao";
 import { RelatorioPontoUnico } from "@/components/RelatorioPontoUnico";
@@ -44,13 +46,14 @@ export function ComparacaoModal({ open, onOpenChange, pontos, fatorCorrecao = 1 
 
         <DialogFooter className="items-center sm:justify-between">
           <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-            {total < MINIMO_RECOMENDADO && (
+            {/* Só faz sentido numa comparação: em "Detalhes do ponto" (1 ponto) soava como erro. */}
+            {total > 1 && total < MINIMO_RECOMENDADO && (
               <p>Amostra abaixo do mínimo recomendado de {MINIMO_RECOMENDADO} pontos para comparação.</p>
             )}
             <p>Dados: IBGE e outras fontes públicas, com modelagem própria auditável.</p>
           </div>
-          <Button variant="outline" disabled title="Em breve">
-            Exportar relatório
+          <Button variant="outline" disabled title="Exportação em PDF chega em breve">
+            Exportar relatório (em breve)
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -68,6 +71,8 @@ function ConteudoComparacao({
   const [comparacao, setComparacao] = useState<Comparacao | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  // Muda a cada "Tentar novamente" pra reexecutar o fetch sem fechar o modal.
+  const [tentativa, setTentativa] = useState(0);
 
   const [pontoAtivo, setPontoAtivo] = useState<string | null>(null);
   const [poisPorSetor, setPoisPorSetor] = useState<Record<string, Poi[]>>({});
@@ -90,7 +95,7 @@ function ConteudoComparacao({
         if (!cancelado) setComparacao(data);
       })
       .catch(() => {
-        if (!cancelado) setErro("Erro ao carregar os detalhes dos pontos.");
+        if (!cancelado) setErro("Não foi possível carregar os dados dos pontos agora.");
       })
       .finally(() => {
         if (!cancelado) setLoading(false);
@@ -98,7 +103,13 @@ function ConteudoComparacao({
     return () => {
       cancelado = true;
     };
-  }, [idsKey]);
+  }, [idsKey, tentativa]);
+
+  function tentarNovamente() {
+    setErro(null);
+    setLoading(true);
+    setTentativa((t) => t + 1);
+  }
 
   const tabela = useMemo(
     () => (comparacao ? montarTabelaComparativa(pontos, comparacao, fatorCorrecao) : null),
@@ -178,11 +189,33 @@ function ConteudoComparacao({
 
       <div>
         {loading && (
-          <p className="flex items-center gap-2 p-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" /> Carregando detalhes...
-          </p>
+          // Esqueleto no formato do relatório: um clique lento parece "carregando", não vazio/quebrado.
+          <div className="flex flex-col gap-4" aria-busy="true">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" /> Carregando detalhes...
+            </p>
+            <Skeleton className="h-24 rounded-lg" />
+            <div className="grid grid-cols-3 gap-2">
+              <Skeleton className="h-16" />
+              <Skeleton className="h-16" />
+              <Skeleton className="h-16" />
+            </div>
+            <Skeleton className="h-40 rounded-lg" />
+          </div>
         )}
-        {erro && <p className="p-2 text-sm text-destructive">{erro}</p>}
+        {erro && (
+          <Alert variant="destructive">
+            <CircleAlert />
+            <AlertTitle>{erro}</AlertTitle>
+            <AlertDescription className="flex flex-col items-start gap-2">
+              Pode ser uma instabilidade momentânea. Tente de novo; se continuar, fale com o suporte.
+              <Button variant="outline" size="sm" onClick={tentarNovamente}>
+                <RotateCw />
+                Tentar novamente
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* 1 ponto: relatório em cartões, mais fácil de ler que uma tabela de 1 coluna só.
             2+ pontos: mantém a tabela comparativa (o formato de cartões não foi desenhado pra N colunas). */}

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, Eye, EyeOff, Loader2, Plus } from "lucide-react";
 import { Marca } from "@/components/Marca";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -134,15 +135,17 @@ function NovoUsuarioModal({ open, onOpenChange, onCriado }: NovoUsuarioModalProp
                 onChange={(e) => setSenha(e.target.value)}
                 className="pr-8"
               />
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setMostrarSenha((v) => !v)}
                 tabIndex={-1}
-                className="absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+                className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground"
                 aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
               >
-                {mostrarSenha ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
+                {mostrarSenha ? <EyeOff /> : <Eye />}
+              </Button>
             </div>
             <p className="text-xs text-muted-foreground">Pelo menos 8 caracteres.</p>
           </div>
@@ -231,41 +234,41 @@ export function AdminArea({ onVoltar }: { onVoltar: () => void }) {
           <section className="flex flex-col gap-3">
             <h2 className="text-sm font-semibold">Últimos eventos</h2>
             <Card size="sm">
-              <CardContent className="overflow-x-auto px-0">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                      <th className="px-4 py-2 font-medium">Usuário</th>
-                      <th className="px-4 py-2 font-medium">Ação</th>
-                      <th className="px-4 py-2 font-medium">Data/hora</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <CardContent className="px-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="px-4">Usuário</TableHead>
+                      <TableHead className="px-4">Ação</TableHead>
+                      <TableHead className="px-4">Data/hora</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {!metricas && (
-                      <tr>
-                        <td colSpan={3} className="px-4 py-3 text-muted-foreground">
+                      <TableRow>
+                        <TableCell colSpan={3} className="px-4 text-muted-foreground">
                           Carregando...
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )}
                     {metricas?.ultimosEventos.length === 0 && (
-                      <tr>
-                        <td colSpan={3} className="px-4 py-3 text-muted-foreground">
+                      <TableRow>
+                        <TableCell colSpan={3} className="px-4 text-muted-foreground">
                           Nenhum evento registrado ainda.
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )}
                     {metricas?.ultimosEventos.map((evento) => (
-                      <tr key={evento.id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-2">{evento.usuario ?? "—"}</td>
-                        <td className="px-4 py-2">{rotuloAcao(evento.acao)}</td>
-                        <td className="px-4 py-2 text-muted-foreground tabular-nums">
+                      <TableRow key={evento.id}>
+                        <TableCell className="px-4">{evento.usuario ?? "—"}</TableCell>
+                        <TableCell className="px-4">{rotuloAcao(evento.acao)}</TableCell>
+                        <TableCell className="px-4 text-muted-foreground tabular-nums">
                           {formatData(evento.criadoEm)}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </section>
@@ -279,42 +282,42 @@ export function AdminArea({ onVoltar }: { onVoltar: () => void }) {
               </Button>
             </div>
             <Card size="sm">
-              <CardContent className="overflow-x-auto px-0">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                      <th className="px-4 py-2 font-medium">Nome</th>
-                      <th className="px-4 py-2 font-medium">E-mail</th>
-                      <th className="px-4 py-2 font-medium">Papel</th>
-                      <th className="px-4 py-2 font-medium">Status</th>
-                      <th className="px-4 py-2 font-medium">Criado em</th>
-                      <th className="px-4 py-2 font-medium" />
-                    </tr>
-                  </thead>
-                  <tbody>
+              <CardContent className="px-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="px-4">Nome</TableHead>
+                      <TableHead className="px-4">E-mail</TableHead>
+                      <TableHead className="px-4">Papel</TableHead>
+                      <TableHead className="px-4">Status</TableHead>
+                      <TableHead className="px-4">Criado em</TableHead>
+                      <TableHead className="px-4" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {!usuarios && (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-3 text-muted-foreground">
+                      <TableRow>
+                        <TableCell colSpan={6} className="px-4 text-muted-foreground">
                           Carregando...
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )}
                     {usuarios?.map((u) => (
-                      <tr key={u.id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-2 font-medium">{u.nome}</td>
-                        <td className="px-4 py-2 text-muted-foreground">{u.email}</td>
-                        <td className="px-4 py-2">
+                      <TableRow key={u.id}>
+                        <TableCell className="px-4 font-medium">{u.nome}</TableCell>
+                        <TableCell className="px-4 text-muted-foreground">{u.email}</TableCell>
+                        <TableCell className="px-4">
                           <Badge variant="outline">{u.role}</Badge>
-                        </td>
-                        <td className="px-4 py-2">
+                        </TableCell>
+                        <TableCell className="px-4">
                           <Badge variant={u.isActive ? "default" : "secondary"}>
                             {u.isActive ? "Ativo" : "Desativado"}
                           </Badge>
-                        </td>
-                        <td className="px-4 py-2 text-muted-foreground tabular-nums">
+                        </TableCell>
+                        <TableCell className="px-4 text-muted-foreground tabular-nums">
                           {formatData(u.createdAt)}
-                        </td>
-                        <td className="px-4 py-2 text-right">
+                        </TableCell>
+                        <TableCell className="px-4 text-right">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -325,11 +328,11 @@ export function AdminArea({ onVoltar }: { onVoltar: () => void }) {
                             {alternando === u.id && <Loader2 className="animate-spin" />}
                             {u.isActive ? "Desativar" : "Ativar"}
                           </Button>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </section>

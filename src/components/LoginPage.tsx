@@ -65,23 +65,27 @@ export function LoginPage() {
                     onChange={(e) => setSenha(e.target.value)}
                     className="pr-8"
                   />
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => setMostrarSenha((v) => !v)}
                     tabIndex={-1}
-                    className="absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+                    className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground"
                     aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
                   >
-                    {mostrarSenha ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
+                    {mostrarSenha ? <EyeOff /> : <Eye />}
+                  </Button>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="link"
+                  size="xs"
                   onClick={() => setModalSuporteAberto(true)}
-                  className="cursor-pointer self-end text-xs text-muted-foreground hover:text-foreground hover:underline"
+                  className="self-end px-0 text-muted-foreground"
                 >
                   Esqueceu a senha?
-                </button>
+                </Button>
               </div>
 
               {erro && <p className="text-sm text-destructive">{erro}</p>}

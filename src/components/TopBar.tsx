@@ -3,6 +3,7 @@ import { Search, LogOut, MessageCircle, Moon, ShieldUser, Sun } from "lucide-rea
 import { Marca } from "@/components/Marca";
 import { SuporteModal } from "@/components/SuporteModal";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -16,7 +17,7 @@ import { localizarSetorPorPonto } from "@/lib/api";
 import { buscarEnderecos, type SugestaoEndereco } from "@/lib/geocoding";
 import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/useAuth";
-import type { SetorResumo } from "@/types/setor";
+import type { Localizacao, SetorResumo } from "@/types/setor";
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
@@ -33,9 +34,11 @@ function iniciaisUsuario(nome: string | undefined): string {
 interface TopBarProps {
   onSelectResultado: (setor: SetorResumo, rotulo: string) => void;
   onAbrirAdmin?: () => void;
+  /** Região em uso (último ponto escolhido): a busca prioriza endereços perto dela. */
+  proximidade?: Localizacao;
 }
 
-export function TopBar({ onSelectResultado, onAbrirAdmin }: TopBarProps) {
+export function TopBar({ onSelectResultado, onAbrirAdmin, proximidade }: TopBarProps) {
   const { theme, setTheme } = useTheme();
   const { usuario, logout } = useAuth();
   const isDark = theme === "dark";
@@ -46,18 +49,24 @@ export function TopBar({ onSelectResultado, onAbrirAdmin }: TopBarProps) {
   const [aberto, setAberto] = useState(false);
   const [suporteAberto, setSuporteAberto] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Texto da sugestão escolhida: ao preencher o campo com ele, NÃO buscar de novo — senão a
+  // lista reabria logo após o clique, cobrindo o mapa e parecendo que a escolha não funcionou.
+  const escolhidoRef = useRef<string | null>(null);
+  const proximidadeRef = useRef(proximidade);
+  useEffect(() => {
+    proximidadeRef.current = proximidade;
+  }, [proximidade]);
 
   useEffect(() => {
     const trimmed = query.trim();
-    if (trimmed.length < MIN_QUERY_LENGTH) return;
+    if (trimmed.length < MIN_QUERY_LENGTH || trimmed === escolhidoRef.current) return;
 
     // Efeito de busca com debounce: liga o estado de loading antes de agendar
     // o fetch, e limpa no cleanup se query mudar antes do timer disparar.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setErro(null);
     const timer = setTimeout(() => {
-      buscarEnderecos(trimmed)
+      buscarEnderecos(trimmed, proximidadeRef.current)
         .then((data) => {
           setResultados(data);
           setAberto(true);
@@ -83,6 +92,7 @@ export function TopBar({ onSelectResultado, onAbrirAdmin }: TopBarProps) {
   }, []);
 
   async function handleSelect(sugestao: SugestaoEndereco) {
+    escolhidoRef.current = sugestao.texto.trim();
     setQuery(sugestao.texto);
     setAberto(false);
     setErro(null);
@@ -105,6 +115,7 @@ export function TopBar({ onSelectResultado, onAbrirAdmin }: TopBarProps) {
   }
 
   function handleQueryChange(value: string) {
+    escolhidoRef.current = null;
     setQuery(value);
     if (value.trim().length < MIN_QUERY_LENGTH) {
       setResultados([]);
@@ -149,14 +160,15 @@ export function TopBar({ onSelectResultado, onAbrirAdmin }: TopBarProps) {
               {!loading &&
                 !erro &&
                 resultados.map((sugestao) => (
-                  <button
+                  <Button
                     key={sugestao.id}
                     type="button"
+                    variant="ghost"
                     onClick={() => void handleSelect(sugestao)}
-                    className="flex w-full cursor-pointer items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                    className="h-auto w-full justify-start rounded-none px-3 py-2 text-left font-medium whitespace-normal"
                   >
-                    <span className="font-medium">{sugestao.texto}</span>
-                  </button>
+                    {sugestao.texto}
+                  </Button>
                 ))}
             </div>
           )}

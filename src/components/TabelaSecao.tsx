@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react";
 import { BadgePonto } from "@/components/BadgePonto";
 import { InfoIcone } from "@/components/InfoIcone";
-import { ALTURA_FAIXA_PIRAMIDE, PiramideEtaria } from "@/components/PiramideEtaria";
+import { PiramideEtaria } from "@/components/PiramideEtaria";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type {
   CelulaTabela,
   ColunaTabela,
@@ -35,25 +37,24 @@ function Celula({ celula, maximo }: { celula: CelulaTabela; maximo: number }) {
       <span className="text-muted-foreground">—</span>
     );
   }
-  return (
-    <span className={celula.atenuado ? "text-muted-foreground" : undefined}>
-      {celula.cor && (
-        <span
-          className="mr-1.5 inline-block size-2.5 rounded-sm align-middle"
-          style={{ backgroundColor: celula.cor }}
-        />
-      )}
-      {celula.texto}
-    </span>
-  );
+  // Célula com cor = classe econômica: mesmo Badge colorido do relatório de 1 ponto.
+  if (celula.cor) {
+    return (
+      <Badge className="text-white" style={{ backgroundColor: celula.cor }}>
+        {celula.texto}
+      </Badge>
+    );
+  }
+  return <span className={celula.atenuado ? "text-muted-foreground" : undefined}>{celula.texto}</span>;
 }
 
 export function TabelaSecao({ secao, colunas, pontoAtivo, onSelecionarPonto }: TabelaSecaoProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Rola a tabela (só ela) até a coluna do ponto ativo, se estiver fora da área visível.
+  // Quem rola é o contêiner interno do <Table> do shadcn (data-slot="table-container").
   useEffect(() => {
-    const container = containerRef.current;
+    const container = containerRef.current?.querySelector<HTMLElement>('[data-slot="table-container"]');
     if (!container || !pontoAtivo) return;
     const cabecalho = container.querySelector<HTMLElement>(`th[data-cd-setor="${pontoAtivo}"]`);
     const colunaFixa = container.querySelector<HTMLElement>("th[data-coluna-fixa]");
@@ -82,21 +83,22 @@ export function TabelaSecao({ secao, colunas, pontoAtivo, onSelecionarPonto }: T
         {secao.info && <InfoIcone texto={secao.info} />}
       </h3>
 
-      <div ref={containerRef} className="relative overflow-x-auto rounded-md border border-border">
-        <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
-          <thead>
-            <tr>
-              <th
+      <div ref={containerRef} className="overflow-hidden rounded-md border border-border">
+        <Table className="w-max min-w-full border-separate border-spacing-0">
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead
                 data-coluna-fixa
-                className="sticky left-0 z-20 min-w-52 border-b border-border bg-popover px-3 py-2 text-left text-xs font-medium text-muted-foreground"
+                className="sticky left-0 z-20 h-auto w-64 min-w-52 border-b border-border bg-popover px-3 py-2 text-xs text-muted-foreground"
               >
                 Variável
-              </th>
+              </TableHead>
+              {/* Colunas de ponto sem largura fixa: a sobra da largura vai pros dados, não pros rótulos. */}
               {colunas.map((coluna, i) => (
-                <th
+                <TableHead
                   key={coluna.cdSetor}
                   data-cd-setor={coluna.cdSetor}
-                  className={`w-44 min-w-44 border-b border-border px-3 py-2 text-left align-top ${destaque(i)}`}
+                  className={`h-auto min-w-44 border-b border-border px-3 py-2 align-top whitespace-normal ${destaque(i)}`}
                 >
                   <div className="flex items-start gap-2">
                     <BadgePonto
@@ -105,13 +107,15 @@ export function TabelaSecao({ secao, colunas, pontoAtivo, onSelecionarPonto }: T
                       onClick={() => onSelecionarPonto(coluna.cdSetor)}
                       titulo={`Ver o ponto ${coluna.numero} no mapa`}
                     />
-                    <span className="line-clamp-2 text-xs leading-snug font-medium">{coluna.rotulo}</span>
+                    <span className="line-clamp-2 text-xs leading-snug font-medium" title={coluna.rotulo}>
+                      {coluna.rotulo}
+                    </span>
                   </div>
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {secao.linhas.map((linha, indice) => (
               <Linha
                 key={`${indice}-${linha.tipo === "grupo" ? linha.titulo : linha.rotulo}`}
@@ -120,8 +124,8 @@ export function TabelaSecao({ secao, colunas, pontoAtivo, onSelecionarPonto }: T
                 destaque={destaque}
               />
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {secao.nota && <p className="text-xs text-muted-foreground">{secao.nota}</p>}
@@ -140,48 +144,41 @@ function Linha({
 }) {
   if (linha.tipo === "grupo") {
     return (
-      <tr>
-        <th className="sticky left-0 z-10 min-w-52 border-b border-border bg-muted px-3 py-1.5 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+      <TableRow className="hover:bg-transparent">
+        <TableHead className="sticky left-0 z-10 h-auto w-64 min-w-52 border-b border-border bg-muted px-3 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           <span className="flex items-center gap-1.5">
             {linha.titulo}
             {linha.info && <InfoIcone texto={linha.info} />}
           </span>
-        </th>
-        <td colSpan={totalColunas} className="border-b border-border bg-muted" />
-      </tr>
+        </TableHead>
+        <TableCell colSpan={totalColunas} className="border-b border-border bg-muted p-0" />
+      </TableRow>
     );
   }
 
   const maximo = linha.tipo === "piramide" ? maiorFatia(linha.celulas) : 0;
 
   return (
-    <tr>
-      <th
+    <TableRow>
+      <TableHead
         scope="row"
-        className="sticky left-0 z-10 min-w-52 border-b border-border bg-popover px-3 py-2 text-left align-top text-sm font-normal text-muted-foreground"
+        className="sticky left-0 z-10 h-auto w-64 min-w-52 border-b border-border bg-popover px-3 py-2 align-top font-normal whitespace-normal text-muted-foreground"
       >
         <span className="flex items-center gap-1.5">
           {linha.rotulo}
           {linha.info && <InfoIcone texto={linha.info} />}
         </span>
-        {linha.tipo === "piramide" && (
-          <div className="mt-1 text-[10px] text-muted-foreground/80" aria-hidden>
-            {linha.faixasRotulos.map((faixa) => (
-              <div key={faixa} style={{ height: ALTURA_FAIXA_PIRAMIDE, lineHeight: `${ALTURA_FAIXA_PIRAMIDE}px` }}>
-                {faixa}
-              </div>
-            ))}
-          </div>
-        )}
-      </th>
+      </TableHead>
+      {/* A distribuição etária traz faixa, barra e % dentro da própria célula — por isso a
+          coluna fica mais larga nessa linha, pras barras terem espaço de verdade. */}
       {linha.celulas.map((celula, i) => (
-        <td
+        <TableCell
           key={i}
-          className={`w-44 min-w-44 border-b border-border px-3 py-2 align-top tabular-nums ${destaque(i)}`}
+          className={`${linha.tipo === "piramide" ? "min-w-60 py-3" : "min-w-44 py-2"} border-b border-border px-3 align-top whitespace-normal tabular-nums ${destaque(i)}`}
         >
           <Celula celula={celula} maximo={maximo} />
-        </td>
+        </TableCell>
       ))}
-    </tr>
+    </TableRow>
   );
 }

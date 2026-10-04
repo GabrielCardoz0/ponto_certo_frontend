@@ -6,6 +6,7 @@ import { BadgePonto } from "@/components/BadgePonto";
 import { ComparacaoModal } from "@/components/ComparacaoModal";
 import { corrigirRenda } from "@/lib/correcaoMonetaria";
 import { formatMoeda } from "@/lib/format";
+import { RENDA_NAO_DIVULGADA } from "@/lib/semDado";
 import type { PontoSelecionado } from "@/types/setor";
 
 interface DetailPanelProps {
@@ -72,8 +73,11 @@ export function DetailPanel({
                   <div className="min-w-0 flex-1">
                     <p className="line-clamp-2 text-sm leading-snug font-medium">{ponto.rotulo}</p>
                     <p className="text-xs text-muted-foreground">
-                      Renda média {formatMoeda(corrigirRenda(ponto.setor.rendaMedia, fatorCorrecao))}
+                      {ponto.setor.rendaMedia === null
+                        ? RENDA_NAO_DIVULGADA
+                        : `Renda do responsável ${formatMoeda(corrigirRenda(ponto.setor.rendaMedia, fatorCorrecao))}`}
                     </p>
+                    <p className="text-[10px] text-muted-foreground/60">Setor {ponto.setor.cdSetor}</p>
                   </div>
                   <Button
                     variant="ghost"

@@ -1,5 +1,6 @@
 import { Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 
 /**
  * Ícone "i" com explicação de um campo/cartão/linha — reaproveitado no relatório de 1 ponto e
@@ -11,9 +12,10 @@ export function InfoIcone({ texto }: { texto: string }) {
     <Popover>
       <PopoverTrigger
         render={
-          <button
-            type="button"
-            className="cursor-pointer text-muted-foreground/60 hover:text-foreground"
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="size-4 text-muted-foreground/60 hover:bg-transparent hover:text-foreground"
             aria-label="O que significa este dado"
           />
         }

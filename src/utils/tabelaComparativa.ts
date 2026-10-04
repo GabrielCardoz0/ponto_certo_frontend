@@ -1,7 +1,13 @@
 import { classeEconomica } from "@/lib/abep";
 import { corrigirRenda } from "@/lib/correcaoMonetaria";
 import { formatMoeda, formatNumero } from "@/lib/format";
+import { INFO_RENDA_MEDIA, INFO_RENDA_MEDIANA, ROTULO_RENDA_MEDIA, ROTULO_RENDA_MEDIANA } from "@/lib/rotulosRenda";
 import { rotuloCategoria, rotuloSubcategoria } from "@/utils/nomePoi";
+import {
+  domicilioPredominante,
+  faixaEtariaPredominante,
+  homogeneidadeRenda,
+} from "@/utils/resumoSetor";
 import type { Comparacao, PontoSelecionado, SetorComPois } from "@/types/setor";
 
 /**
@@ -49,6 +55,7 @@ export interface TabelaComparativa {
 const ORDEM_CATEGORIAS = ["transporte", "comercio", "educacao", "saude", "lazer"];
 
 const SEM_DADO: CelulaTabela = { tipo: "texto", texto: "—", atenuado: true };
+const NAO_DIVULGADA: CelulaTabela = { tipo: "texto", texto: "Não divulgada", atenuado: true };
 
 function texto(valor: string): CelulaTabela {
   return { tipo: "texto", texto: valor };
@@ -116,12 +123,9 @@ function secaoLocalizacao(pontos: PontoSelecionado[], setores: Setores, raioMetr
   ]);
   const km = formatNumero(raioMetros / 1000, raioMetros % 1000 === 0 ? 0 : 1);
 
+  // O endereço já está no cabeçalho de cada coluna (completo no hover) — repetir numa linha só
+  // empurrava os números pra baixo.
   const linhas: LinhaTabela[] = [
-    {
-      tipo: "dados",
-      rotulo: "Endereço / ponto",
-      celulas: pontos.map((p) => texto(p.rotulo)),
-    },
     {
       tipo: "dados",
       rotulo: "Coordenada",
@@ -172,22 +176,24 @@ function secaoLocalizacao(pontos: PontoSelecionado[], setores: Setores, raioMetr
 }
 
 function secaoSocioeconomico(setores: Setores, fator: number): SecaoTabela {
+  const renda = (valor: number | null): CelulaTabela =>
+    valor === null ? NAO_DIVULGADA : texto(formatMoeda(corrigirRenda(valor, fator)));
+
+  // Pontos sem renda publicada: explica na nota da seção, em vez de só um traço na célula.
+  const semRenda = setores.flatMap((s, i) => (s && s.rendaMedia === null ? [i + 1] : []));
+  const notas = [
+    "Coeficiente de variação: quanto menor, mais homogênea a renda dentro do setor.",
+    semRenda.length > 0
+      ? `Renda não divulgada no${semRenda.length > 1 ? "s pontos" : " ponto"} ${semRenda.join(", ")}: o IBGE omite por sigilo estatístico (poucos domicílios) ou o setor não tem moradores.`
+      : null,
+  ];
+
   return {
     id: "socioeconomico",
     titulo: "Perfil socioeconômico",
     linhas: [
-      linha(
-        "Renda média",
-        setores,
-        (s) => texto(formatMoeda(corrigirRenda(s.rendaMedia, fator))),
-        "Renda média dos domicílios do setor censitário, corrigida do valor bruto do Censo 2022 pra hoje pelo IPCA acumulado."
-      ),
-      linha(
-        "Renda mediana",
-        setores,
-        (s) => texto(formatMoeda(corrigirRenda(s.rendaMediana, fator))),
-        "Valor que divide os domicílios do setor ao meio: metade tem renda maior, metade tem renda menor. Menos sensível a valores extremos do que a média. Também corrigida pelo IPCA acumulado."
-      ),
+      linha(ROTULO_RENDA_MEDIA, setores, (s) => renda(s.rendaMedia), INFO_RENDA_MEDIA),
+      linha(ROTULO_RENDA_MEDIANA, setores, (s) => renda(s.rendaMediana), INFO_RENDA_MEDIANA),
       linha(
         "Classe econômica",
         setores,
@@ -204,7 +210,7 @@ function secaoSocioeconomico(setores: Setores, fator: number): SecaoTabela {
         "Quanto menor, mais parecida é a renda entre os domicílios do setor; quanto maior, mais desigual. É uma proporção — a correção monetária não muda esse número."
       ),
     ],
-    nota: "Coeficiente de variação: quanto menor, mais homogênea a renda dentro do setor. Índice de Potencial de Consumo: em breve.",
+    nota: notas.filter(Boolean).join(" "),
   };
 }
 
@@ -277,8 +283,8 @@ function secaoDemografico(setores: Setores): SecaoTabela {
 
     {
       tipo: "piramide",
-      rotulo: "Pirâmide etária",
-      info: "Distribuição da população por faixa etária. O cruzamento sexo × idade não é publicado pelo IBGE nessas tabelas, então cada barra é só o total da faixa (não separado por sexo).",
+      rotulo: "Distribuição etária",
+      info: "% dos moradores em cada faixa de idade. Em destaque, a faixa predominante de cada ponto. As barras usam a mesma escala em todos os pontos.",
       faixasRotulos,
       celulas: setores.map((s) => {
         const faixas = s?.demografia?.piramideEtaria;
@@ -291,16 +297,18 @@ function secaoDemografico(setores: Setores): SecaoTabela {
       }),
     },
 
-    {
-      tipo: "grupo",
-      titulo: "Raça / cor",
-      info: "Distribuição da população do setor por raça/cor autodeclarada ao Censo.",
-    },
-    contagem("Branca", (s) => s.demografia?.raca.branca, (s) => s.populacao),
-    contagem("Preta", (s) => s.demografia?.raca.preta, (s) => s.populacao),
-    contagem("Amarela", (s) => s.demografia?.raca.amarela, (s) => s.populacao),
-    contagem("Parda", (s) => s.demografia?.raca.parda, (s) => s.populacao),
-    contagem("Indígena", (s) => s.demografia?.raca.indigena, (s) => s.populacao),
+    // Raça/cor fora da tela por enquanto (decisão de produto — vai ganhar outro uso depois).
+    // A API continua devolvendo o dado; pra reativar, é só descomentar.
+    // {
+    //   tipo: "grupo",
+    //   titulo: "Raça / cor",
+    //   info: "Distribuição da população do setor por raça/cor autodeclarada ao Censo.",
+    // },
+    // contagem("Branca", (s) => s.demografia?.raca.branca, (s) => s.populacao),
+    // contagem("Preta", (s) => s.demografia?.raca.preta, (s) => s.populacao),
+    // contagem("Amarela", (s) => s.demografia?.raca.amarela, (s) => s.populacao),
+    // contagem("Parda", (s) => s.demografia?.raca.parda, (s) => s.populacao),
+    // contagem("Indígena", (s) => s.demografia?.raca.indigena, (s) => s.populacao),
 
     {
       tipo: "grupo",
@@ -358,23 +366,19 @@ function secaoVulnerabilidade(pontos: PontoSelecionado[], setores: Setores): Sec
     contagemOcupados("Casa em condomínio", (s) => s.vulnerabilidade?.tipoDomicilio.casaCondominio),
     contagemOcupados("Apartamento", (s) => s.vulnerabilidade?.tipoDomicilio.apartamento),
     contagemOcupados("Precário", (s) => s.vulnerabilidade?.tipoDomicilio.precario),
-
-    { tipo: "grupo", titulo: "Banheiro" },
-    percentualOcupados(
-      "Com banheiro exclusivo",
-      (s) => s.vulnerabilidade?.banheiro.com,
-      "% dos domicílios ocupados com banheiro de uso exclusivo do próprio domicílio."
-    ),
   ];
 
   // Entorno urbano: só setor urbano tem dado de face de quadra — deixar isso explícito.
   // Avisos ficam na `nota` da seção (fora da área rolável), nunca numa linha da tabela.
   const temEntorno = setores.some((s) => s?.vulnerabilidade?.entorno);
 
+  // Sem entorno NÃO quer dizer rural: setor urbano em sigilo também vem sem.
+  const ehRural = (s: SetorComPois) => Boolean(s.situacao?.toLowerCase().startsWith("rural"));
+
   let nota: string | undefined;
   if (!temEntorno) {
     nota =
-      "Entorno urbano (pavimentação, iluminação, calçadas etc.): só existe para setores urbanos — nenhum dos pontos selecionados tem esse dado.";
+      "Entorno urbano (pavimentação, iluminação, calçadas etc.): o IBGE não publicou esse levantamento para nenhum dos pontos selecionados (só é feito em setores urbanos).";
   } else {
     linhas.push({
       tipo: "grupo",
@@ -392,9 +396,7 @@ function secaoVulnerabilidade(pontos: PontoSelecionado[], setores: Setores): Sec
         (s) => {
           const entorno = s.vulnerabilidade?.entorno;
           if (entorno) return celulaPct(valor(entorno), entorno.facesTotal);
-          return s.vulnerabilidade
-            ? { tipo: "texto", texto: "Não se aplica", atenuado: true }
-            : SEM_DADO;
+          return { tipo: "texto", texto: ehRural(s) ? "Não se aplica (rural)" : "Não publicado", atenuado: true };
         },
         info
       );
@@ -425,26 +427,123 @@ function secaoVulnerabilidade(pontos: PontoSelecionado[], setores: Setores): Sec
       face(
         "Obstáculo na calçada",
         (e) => e.comObstaculo,
-        "% das faces de quadra do setor cuja calçada tem algum obstáculo à circulação de pedestres."
+        "% das faces de quadra do setor cuja calçada tem algum obstáculo à circulação de pedestres. Aqui, quanto MENOR, melhor."
       ),
       face(
         "Rampa para cadeirante",
         (e) => e.comRampa,
         "% das faces de quadra do setor com rampa de acessibilidade para cadeirantes."
       ),
-      face("Sem arborização", (e) => e.semArvores, "% das faces de quadra do setor sem nenhuma árvore.")
+      face(
+        "Sem arborização",
+        (e) => e.semArvores,
+        "% das faces de quadra do setor sem nenhuma árvore. Aqui, quanto MENOR, melhor."
+      )
     );
 
+    const listar = (ns: number[]) => `ponto${ns.length > 1 ? "s" : ""} ${ns.join(", ")}`;
     const semEntorno = pontos
       .map((_, i) => i)
-      .filter((i) => setores[i] && !setores[i]!.vulnerabilidade?.entorno)
-      .map((i) => i + 1);
-    if (semEntorno.length > 0) {
-      nota = `Entorno urbano não se aplica a setor rural: ponto${semEntorno.length > 1 ? "s" : ""} ${semEntorno.join(", ")}.`;
-    }
+      .filter((i) => setores[i] && !setores[i]!.vulnerabilidade?.entorno);
+    const rurais = semEntorno.filter((i) => ehRural(setores[i]!)).map((i) => i + 1);
+    const naoPublicados = semEntorno.filter((i) => !ehRural(setores[i]!)).map((i) => i + 1);
+    const partes = [
+      rurais.length > 0 ? `não se aplica a setor rural (${listar(rurais)})` : null,
+      naoPublicados.length > 0 ? `não publicado pelo IBGE (${listar(naoPublicados)})` : null,
+    ].filter(Boolean);
+    if (partes.length > 0) nota = `Entorno urbano ${partes.join("; ")}.`;
   }
 
   return { id: "vulnerabilidade", titulo: "Vulnerabilidade e infraestrutura", linhas, nota };
+}
+
+/**
+ * Primeira seção da comparação: as mesmas "respostas rápidas" do relatório de 1 ponto
+ * (utils/resumoSetor.ts), lado a lado, antes de qualquer detalhe.
+ */
+function secaoResumo(setores: Setores, fator: number): SecaoTabela {
+  return {
+    id: "resumo",
+    titulo: "Resumo",
+    info: "As respostas mais pedidas sobre cada ponto. Detalhes nas seções abaixo.",
+    linhas: [
+      linha(
+        ROTULO_RENDA_MEDIA,
+        setores,
+        (s) => (s.rendaMedia === null ? NAO_DIVULGADA : texto(formatMoeda(corrigirRenda(s.rendaMedia, fator)))),
+        INFO_RENDA_MEDIA
+      ),
+      linha(
+        "Classe econômica",
+        setores,
+        (s) => {
+          const classe = classeEconomica(corrigirRenda(s.rendaMedia, fator));
+          return classe ? { tipo: "texto", texto: classe.label, cor: classe.cor } : SEM_DADO;
+        },
+        "Classe ABEP (A1 a DE) pela renda média corrigida."
+      ),
+      linha(
+        "Homogeneidade da renda",
+        setores,
+        (s) => {
+          const homogeneidade = homogeneidadeRenda(s.coefVariacaoRenda);
+          return homogeneidade ? texto(homogeneidade.texto.replace("Renda ", "")) : SEM_DADO;
+        },
+        "Se a renda é parecida entre os domicílios. Coeficiente de variação abaixo de 0,5 = homogênea."
+      ),
+      linha(
+        "Faixa etária predominante",
+        setores,
+        (s) => {
+          const faixa = faixaEtariaPredominante(s);
+          if (!faixa) return SEM_DADO;
+          return texto(
+            faixa.percentual !== null
+              ? `${faixa.faixa} anos (${formatPercentual(faixa.percentual)})`
+              : `${faixa.faixa} anos`
+          );
+        },
+        "Faixa de idade com mais moradores."
+      ),
+      linha(
+        "População",
+        setores,
+        (s) => (s.populacao === null ? SEM_DADO : texto(formatNumero(s.populacao))),
+        "Moradores do setor no Censo 2022."
+      ),
+      linha(
+        "Densidade (hab/km²)",
+        setores,
+        (s) => (s.densidadeHabKm2 === null ? SEM_DADO : texto(formatNumero(s.densidadeHabKm2, 0))),
+        "Moradores por km² de área do setor."
+      ),
+      linha(
+        "Moradia predominante",
+        setores,
+        (s) => {
+          const domicilio = domicilioPredominante(s);
+          if (!domicilio) return SEM_DADO;
+          return texto(
+            domicilio.percentual !== null
+              ? `${domicilio.rotulo} (${formatPercentual(domicilio.percentual)})`
+              : domicilio.rotulo
+          );
+        },
+        "Tipo de domicílio mais comum: casa, condomínio, apartamento ou precária."
+      ),
+      linha(
+        "Transporte mais próximo",
+        setores,
+        (s) => {
+          const proximo = s.poiMaisProximo.find((p) => p.categoria === "transporte");
+          return proximo
+            ? texto(`${formatDistancia(proximo.distanciaM)} · ${rotuloSubcategoria(proximo.subcategoria)}`)
+            : SEM_DADO;
+        },
+        "Distância até o ponto de transporte público mais próximo (ônibus, metrô ou trem)."
+      ),
+    ],
+  };
 }
 
 export function montarTabelaComparativa(
@@ -460,6 +559,7 @@ export function montarTabelaComparativa(
     raioMetros: comparacao.raioMetros,
     colunas: pontos.map((p, i) => ({ numero: i + 1, cdSetor: p.setor.cdSetor, rotulo: p.rotulo })),
     secoes: [
+      secaoResumo(setores, fatorCorrecao),
       secaoLocalizacao(pontos, setores, comparacao.raioMetros),
       secaoSocioeconomico(setores, fatorCorrecao),
       secaoDemografico(setores),

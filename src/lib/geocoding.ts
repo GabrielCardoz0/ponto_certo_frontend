@@ -13,7 +13,15 @@ interface MapboxFeature {
   center: [number, number];
 }
 
-export async function buscarEnderecos(query: string): Promise<SugestaoEndereco[]> {
+/**
+ * `proximidade`: ordena as sugestões pelo que está perto dela (último ponto escolhido).
+ * Sem ela, usa a localização aproximada do IP do usuário — sem nenhum viés, "Faria Lima 3000"
+ * trazia Guarulhos antes de São Paulo.
+ */
+export async function buscarEnderecos(
+  query: string,
+  proximidade?: { lng: number; lat: number }
+): Promise<SugestaoEndereco[]> {
   if (!MAPBOX_TOKEN) {
     throw new Error("VITE_MAPBOX_TOKEN não configurado.");
   }
@@ -24,6 +32,7 @@ export async function buscarEnderecos(query: string): Promise<SugestaoEndereco[]
     language: "pt",
     types: "address,place,neighborhood,locality",
     limit: "6",
+    proximity: proximidade ? `${proximidade.lng},${proximidade.lat}` : "ip",
   });
 
   const res = await fetch(`${MAPBOX_GEOCODING_URL}/${encodeURIComponent(query)}.json?${params}`);

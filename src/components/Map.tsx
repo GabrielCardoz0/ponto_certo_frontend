@@ -5,6 +5,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
 import { AlertCircle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import { adicionarCamadasPoi } from "@/components/mapa/poi";
 import {
   ABEP_CLASSES,
@@ -13,7 +14,9 @@ import {
   faixaRendaTooltip,
 } from "@/lib/abep";
 import { CLASSE_BADGE_PONTO } from "@/lib/badge";
+import { useFatorCorrecao } from "@/lib/correcaoMonetaria";
 import { VISAO_BRASIL, type BoundsLngLat, type Enquadramento } from "@/lib/geo";
+import { fonteRenda } from "@/lib/rotulosRenda";
 import type { Localizacao, Poi } from "@/types/setor";
 
 /**
@@ -205,6 +208,8 @@ export function MapView({
   gestosCooperativos = false,
   fatorCorrecao = 1,
 }: MapViewProps) {
+  // Só pro texto da fonte na legenda; o fator em si continua vindo por prop (fatorCorrecao).
+  const { mesReferencia } = useFatorCorrecao();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const carregadoRef = useRef(false);
@@ -519,16 +524,17 @@ export function MapView({
       {mostrarLegenda && (
         <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-md border border-border bg-background/90 px-3 py-2 text-xs shadow-sm backdrop-blur">
           <div className="mb-1.5 flex items-center gap-1 font-medium">
-            Classe econômica · renda {rendaCampo === "rendaMedia" ? "média" : "mediana"}
+            Classe econômica · renda {rendaCampo === "rendaMedia" ? "média" : "mediana"} do responsável
             {/* Popover (clique/toque), não Tooltip (hover): num tablet não existe hover, então
                 um tooltip hover-only nunca abre no toque — popover abre com o mesmo gesto de
                 clique em qualquer dispositivo. */}
             <Popover>
               <PopoverTrigger
                 render={
-                  <button
-                    type="button"
-                    className="pointer-events-auto inline-flex cursor-pointer text-muted-foreground hover:text-foreground"
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="pointer-events-auto size-4 text-muted-foreground hover:bg-transparent hover:text-foreground"
                   />
                 }
               >
@@ -569,7 +575,7 @@ export function MapView({
             </div>
           </div>
           <div className="mt-1.5 text-muted-foreground">
-            Fonte: dados públicos IBGE e metodologia proprietária auditável
+            Fonte: IBGE ({fonteRenda(mesReferencia)}) e metodologia proprietária auditável
           </div>
         </div>
       )}

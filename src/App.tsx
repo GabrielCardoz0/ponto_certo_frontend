@@ -1,9 +1,12 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CircleAlert, MapPin, X } from "lucide-react";
 import { MapView, type FlyTarget, type RendaCampo } from "@/components/Map";
 import { TopBar } from "@/components/TopBar";
 import { SidebarIcons } from "@/components/SidebarIcons";
 import { DetailPanel } from "@/components/DetailPanel";
 import { AdminArea } from "@/components/AdminArea";
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { getSetor } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useFatorCorrecao } from "@/lib/correcaoMonetaria";
@@ -14,7 +17,8 @@ import type { Localizacao, PontoSelecionado, Setor, SetorResumo } from "@/types/
 const MAX_PONTOS = 10;
 
 function rotuloPadrao(setor: Setor) {
-  return `${setor.nmMunicipio} · Setor ${setor.cdSetor}`;
+  // Sem o código do setor no título: pouco útil pro corretor (ele aparece como detalhe miúdo).
+  return `Ponto no mapa · ${setor.nmMunicipio}`;
 }
 
 export function App() {
@@ -23,6 +27,14 @@ export function App() {
   const [pontos, setPontos] = useState<PontoSelecionado[]>([]);
   const [modoAdicionar, setModoAdicionar] = useState(false);
   const [carregando, setCarregando] = useState(false);
+  // Falha ao carregar um setor clicado/buscado: antes era engolida em silêncio (o clique
+  // simplesmente "não fazia nada"). Some sozinha depois de alguns segundos.
+  const [erroPonto, setErroPonto] = useState<string | null>(null);
+  useEffect(() => {
+    if (!erroPonto) return;
+    const timer = setTimeout(() => setErroPonto(null), 6000);
+    return () => clearTimeout(timer);
+  }, [erroPonto]);
 
   const [rendaCampo, setRendaCampo] = useState<RendaCampo>("rendaMedia");
   const [camadaVisivel, setCamadaVisivel] = useState(true);
@@ -50,6 +62,7 @@ export function App() {
     }
 
     setCarregando(true);
+    setErroPonto(null);
     try {
       const setor = await getSetor(cdSetor);
       const novo = { setor, rotulo: rotulo ?? rotuloPadrao(setor), localizacao };
@@ -70,7 +83,8 @@ export function App() {
         });
       }
     } catch {
-      // Falha ao buscar o setor selecionado — mantém a seleção anterior.
+      // Mantém a seleção anterior, mas avisa — o usuário precisa saber que o clique não pegou.
+      setErroPonto("Não foi possível carregar essa região agora. Tente clicar de novo.");
     } finally {
       setCarregando(false);
     }
@@ -116,7 +130,11 @@ export function App() {
 
   return (
     <div className="flex h-svh w-screen flex-col overflow-hidden">
-      <TopBar onSelectResultado={handleSelectFromSearch} onAbrirAdmin={() => setArea("admin")} />
+      <TopBar
+        onSelectResultado={handleSelectFromSearch}
+        onAbrirAdmin={() => setArea("admin")}
+        proximidade={pontos.at(-1)?.localizacao}
+      />
       <div className="flex min-h-0 flex-1">
         <SidebarIcons
           rendaCampo={rendaCampo}
@@ -140,6 +158,30 @@ export function App() {
             pontos={pontosNoMapa}
             fatorCorrecao={fatorCorrecao.fatorAcumulado}
           />
+
+          {/* Quem nunca viu a plataforma não tinha nenhuma pista do que fazer no mapa vazio. */}
+          {pontos.length === 0 && !carregando && !erroPonto && (
+            <Alert className="pointer-events-none absolute top-3 left-1/2 z-10 w-max max-w-[calc(100%-6rem)] -translate-x-1/2 shadow-sm">
+              <MapPin />
+              <AlertTitle>Busque um endereço acima ou clique numa região do mapa para começar.</AlertTitle>
+              <AlertDescription>Depois, adicione até {MAX_PONTOS} regiões para comparar lado a lado.</AlertDescription>
+            </Alert>
+          )}
+
+          {erroPonto && (
+            <Alert
+              variant="destructive"
+              className="absolute top-3 left-1/2 z-10 w-max max-w-[calc(100%-6rem)] -translate-x-1/2 shadow-sm"
+            >
+              <CircleAlert />
+              <AlertTitle>{erroPonto}</AlertTitle>
+              <AlertAction>
+                <Button variant="ghost" size="icon-xs" onClick={() => setErroPonto(null)} aria-label="Fechar aviso">
+                  <X />
+                </Button>
+              </AlertAction>
+            </Alert>
+          )}
         </main>
         <DetailPanel
           pontos={pontos}

@@ -1,15 +1,26 @@
-import type { ReactNode } from "react";
-import { Bus, GraduationCap, HeartPulse, MapPin, ShoppingBag, Trees } from "lucide-react";
+import type { CSSProperties, ReactNode } from "react";
+import { Bus, CircleAlert, GraduationCap, HeartPulse, MapPin, ShoppingBag, Trees } from "lucide-react";
 import { InfoIcone } from "@/components/InfoIcone";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
 import { classeEconomica } from "@/lib/abep";
-import { corrigirRenda } from "@/lib/correcaoMonetaria";
+import { corrigirRenda, useFatorCorrecao } from "@/lib/correcaoMonetaria";
 import { formatMoeda, formatNumero } from "@/lib/format";
 import {
-  formatDistancia,
-  formatPercentual,
-  ordenarCategorias,
-  pct,
-} from "@/utils/tabelaComparativa";
+  fonteRenda,
+  INFO_RENDA_MEDIA,
+  INFO_RENDA_MEDIANA,
+  ROTULO_RENDA_MEDIA,
+} from "@/lib/rotulosRenda";
+import { explicacaoSemDado, motivoSemDado } from "@/lib/semDado";
+import { formatDistancia, formatPercentual, ordenarCategorias, pct } from "@/utils/tabelaComparativa";
+import {
+  domicilioPredominante,
+  faixaEtariaPredominante,
+  homogeneidadeRenda,
+} from "@/utils/resumoSetor";
 import { rotuloCategoria, rotuloSubcategoria } from "@/utils/nomePoi";
 import type { PontoSelecionado, SetorComPois } from "@/types/setor";
 
@@ -24,13 +35,14 @@ interface RelatorioPontoUnicoProps {
 const COR_MASCULINA = "#2563eb";
 const COR_FEMININA = "#db2777";
 
-const CORES_RACA: Record<string, string> = {
-  branca: "#94a3b8",
-  preta: "#1f2937",
-  amarela: "#eab308",
-  parda: "#c2703d",
-  indigena: "#16a34a",
-};
+// Raça/cor fora da tela por enquanto (ver comentário no corpo do componente).
+// const CORES_RACA: Record<string, string> = {
+//   branca: "#94a3b8",
+//   preta: "#1f2937",
+//   amarela: "#eab308",
+//   parda: "#c2703d",
+//   indigena: "#16a34a",
+// };
 
 const ICONE_POR_CATEGORIA: Record<string, typeof Bus> = {
   transporte: Bus,
@@ -40,14 +52,62 @@ const ICONE_POR_CATEGORIA: Record<string, typeof Bus> = {
   saude: HeartPulse,
 };
 
-/** Acima disso a renda é lida como "homogênea"; é um corte de leitura, não um padrão do IBGE. */
-const LIMIAR_CV_HOMOGENEO = 0.5;
-
 /** Faixa de cor de uma barra de progresso, seguindo o padrão do relatório: verde/amarelo/vermelho. */
 function corFaixa(percentual: number): string {
   if (percentual >= 80) return "#16a34a";
   if (percentual >= 50) return "#d97706";
   return "#dc2626";
+}
+
+/** Cor de barra no padrão do relatório (verde/amarelo/vermelho), via variável CSS pro Progress do shadcn. */
+function estiloCorBarra(cor: string, alturaTrilho = "0.5rem"): CSSProperties {
+  return { "--cor-barra": cor, "--altura-trilho": alturaTrilho } as CSSProperties;
+}
+/** Aplica `--cor-barra`/`--altura-trilho` ao trilho e ao preenchimento internos do <Progress>. */
+const CLASSE_BARRA =
+  "**:data-[slot=progress-track]:h-(--altura-trilho) **:data-[slot=progress-indicator]:bg-(--cor-barra)";
+
+/**
+ * Indicador do resumo (Card do shadcn): rótulo + "i" EM CIMA, valor no meio, detalhe embaixo.
+ * Mesmo formato pra todos, pra hierarquia ficar previsível.
+ */
+function Indicador({
+  rotulo,
+  info,
+  valor,
+  detalhe,
+  infoDetalhe,
+  corValor,
+}: {
+  rotulo: string;
+  info: string;
+  valor: ReactNode;
+  detalhe?: ReactNode;
+  infoDetalhe?: string;
+  corValor?: string;
+}) {
+  return (
+    <Card size="sm">
+      <CardHeader className="gap-1">
+        <CardDescription className="flex items-center gap-1 text-xs font-medium">
+          {rotulo}
+          <InfoIcone texto={info} />
+        </CardDescription>
+        <CardTitle
+          className={`font-semibold tabular-nums`}
+          style={corValor ? { color: corValor } : undefined}
+        >
+          {valor}
+        </CardTitle>
+        {detalhe && (
+          <CardDescription className="flex items-center gap-1 text-xs">
+            {detalhe}
+            {infoDetalhe && <InfoIcone texto={infoDetalhe} />}
+          </CardDescription>
+        )}
+      </CardHeader>
+    </Card>
+  );
 }
 
 function Cartao({
@@ -62,36 +122,36 @@ function Cartao({
   nota?: string;
 }) {
   return (
-    <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
-      <h3 className="flex items-center gap-1.5 text-sm font-semibold">
-        {titulo}
-        {info && <InfoIcone texto={info} />}
-      </h3>
-      {children}
-      {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
-    </section>
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-1.5 font-semibold">
+          {titulo}
+          {info && <InfoIcone texto={info} />}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {children}
+        {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
+      </CardContent>
+    </Card>
   );
 }
 
-function Estatistica({
-  rotulo,
-  valor,
-  info,
-  tamanho = "grande",
-}: {
-  rotulo: string;
-  valor: string;
-  info?: string;
-  tamanho?: "grande" | "pequeno";
-}) {
+function Estatistica({ rotulo, valor, info }: { rotulo: string; valor: string; info?: string }) {
+  // "—" (dado nulo) vira "Não divulgado": um traço solto parece erro, a frase explica.
+  const naoDivulgado = valor === "—";
   return (
-    <div className="flex flex-col gap-0.5 rounded-md bg-muted/60 px-3 py-2.5">
-      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-        {rotulo}
-        {info && <InfoIcone texto={info} />}
-      </span>
-      <span className={tamanho === "grande" ? "text-2xl font-semibold" : "text-base font-semibold"}>{valor}</span>
-    </div>
+    <Card size="sm" className="bg-muted/40">
+      <CardHeader className="gap-0.5">
+        <CardDescription className="flex items-center gap-1 text-xs">
+          {rotulo}
+          {info && <InfoIcone texto={info} />}
+        </CardDescription>
+        <CardTitle className={naoDivulgado ? "text-sm font-normal text-muted-foreground" : "font-semibold"}>
+          {naoDivulgado ? "Não divulgado" : valor}
+        </CardTitle>
+      </CardHeader>
+    </Card>
   );
 }
 
@@ -99,73 +159,71 @@ function BarraProgresso({
   rotulo,
   info,
   percentual,
+  inverso = false,
 }: {
   rotulo: string;
   info?: string;
   percentual: number | null;
+  /** Indicador em que MAIS é PIOR (obstáculo, sem árvore): a cor segue o inverso do valor. */
+  inverso?: boolean;
 }) {
-  const rotuloComInfo = (
-    <span className="flex items-center gap-1">
-      {rotulo}
-      {info && <InfoIcone texto={info} />}
-    </span>
-  );
-
   if (percentual === null) {
     return (
-      <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="text-muted-foreground">{rotuloComInfo}</span>
-        <span className="text-xs text-muted-foreground">—</span>
+      <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+        <span className="flex items-center gap-1">
+          {rotulo}
+          {info && <InfoIcone texto={info} />}
+        </span>
+        <span className="text-xs">—</span>
       </div>
     );
   }
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between text-sm">
-        {rotuloComInfo}
-        <span className="font-medium tabular-nums">{formatPercentual(percentual)}</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full rounded-full"
-          style={{ width: `${Math.min(100, Math.max(0, percentual))}%`, backgroundColor: corFaixa(percentual) }}
-        />
-      </div>
-    </div>
+    <Progress
+      value={Math.min(100, Math.max(0, percentual))}
+      className={`gap-1.5 ${CLASSE_BARRA}`}
+      style={estiloCorBarra(corFaixa(inverso ? 100 - percentual : percentual))}
+    >
+      <ProgressLabel className="flex items-center gap-1 font-normal">
+        {rotulo}
+        {info && <InfoIcone texto={info} />}
+      </ProgressLabel>
+      <ProgressValue className="font-medium text-foreground">{() => formatPercentual(percentual)}</ProgressValue>
+    </Progress>
   );
 }
 
 export function RelatorioPontoUnico({ ponto, setor, raioMetros, fatorCorrecao = 1 }: RelatorioPontoUnicoProps) {
+  const { mesReferencia } = useFatorCorrecao();
+  const semDado = motivoSemDado(setor);
   const rendaMedia = corrigirRenda(setor.rendaMedia, fatorCorrecao);
   const rendaMediana = corrigirRenda(setor.rendaMediana, fatorCorrecao);
   const classe = classeEconomica(rendaMedia);
   const cv = setor.coefVariacaoRenda;
-  const homogeneidade =
-    cv === null
-      ? null
-      : cv < LIMIAR_CV_HOMOGENEO
-        ? { texto: "Renda homogênea", cor: "#16a34a" }
-        : { texto: "Renda heterogênea", cor: "#d97706" };
+  const homogeneidade = homogeneidadeRenda(cv);
 
   const totalSexo = (setor.demografia?.sexo.masculina ?? 0) + (setor.demografia?.sexo.feminina ?? 0);
   const pctMasculina = pct(setor.demografia?.sexo.masculina ?? null, totalSexo || null);
   const pctFeminina = pct(setor.demografia?.sexo.feminina ?? null, totalSexo || null);
 
-  const raca = setor.demografia?.raca;
-  const totalRaca = raca
-    ? (raca.branca ?? 0) + (raca.preta ?? 0) + (raca.amarela ?? 0) + (raca.parda ?? 0) + (raca.indigena ?? 0)
-    : 0;
-  const fatiasRaca = raca
-    ? (
-        [
-          ["Branca", raca.branca, CORES_RACA.branca],
-          ["Preta", raca.preta, CORES_RACA.preta],
-          ["Parda", raca.parda, CORES_RACA.parda],
-          ["Amarela", raca.amarela, CORES_RACA.amarela],
-          ["Indígena", raca.indigena, CORES_RACA.indigena],
-        ] as const
-      ).map(([rotulo, valor, cor]) => ({ rotulo, cor, percentual: pct(valor, totalRaca || null) }))
-    : [];
+  // Raça/cor: fora da tela por enquanto (decisão de produto — o Gabriel vai dar outro uso pra
+  // esse dado depois). A API continua devolvendo `setor.demografia.raca`; pra reativar, é só
+  // descomentar este cálculo, CORES_RACA lá em cima e o cartão "Raça / cor" mais abaixo.
+  // const raca = setor.demografia?.raca;
+  // const totalRaca = raca
+  //   ? (raca.branca ?? 0) + (raca.preta ?? 0) + (raca.amarela ?? 0) + (raca.parda ?? 0) + (raca.indigena ?? 0)
+  //   : 0;
+  // const fatiasRaca = raca
+  //   ? (
+  //       [
+  //         ["Branca", raca.branca, CORES_RACA.branca],
+  //         ["Preta", raca.preta, CORES_RACA.preta],
+  //         ["Parda", raca.parda, CORES_RACA.parda],
+  //         ["Amarela", raca.amarela, CORES_RACA.amarela],
+  //         ["Indígena", raca.indigena, CORES_RACA.indigena],
+  //       ] as const
+  //     ).map(([rotulo, valor, cor]) => ({ rotulo, cor, percentual: pct(valor, totalRaca || null) }))
+  //   : [];
 
   const alfabetizacao = setor.demografia?.alfabetizacao;
   const totalAlfabetizacao =
@@ -179,24 +237,13 @@ export function RelatorioPontoUnico({ ponto, setor, raioMetros, fatorCorrecao = 
     ...(setor.demografia?.piramideEtaria.map((f) => pct(f.total, setor.populacao) ?? 0) ?? [])
   );
 
-  // Faixa etária com mais gente no setor — a mesma base usada nas barras da pirâmide.
-  const faixaPredominante = (setor.demografia?.piramideEtaria ?? []).reduce<{
-    faixa: string;
-    total: number;
-    percentual: number | null;
-  } | null>((melhor, f) => {
-    if (f.total === null) return melhor;
-    if (melhor === null || f.total > melhor.total) {
-      return { faixa: f.faixa, total: f.total, percentual: pct(f.total, setor.populacao) };
-    }
-    return melhor;
-  }, null);
+  // Respostas rápidas (mesma lógica do resumo da comparação, em utils/resumoSetor.ts).
+  const faixaPredominante = faixaEtariaPredominante(setor);
+  const domicilio = domicilioPredominante(setor);
+  const transporteMaisProximo = setor.poiMaisProximo.find((p) => p.categoria === "transporte");
 
   const categorias = ordenarCategorias([
-    ...new Set([
-      ...setor.poisPorCategoria.map((p) => p.categoria),
-      ...setor.poiMaisProximo.map((p) => p.categoria),
-    ]),
+    ...new Set([...setor.poisPorCategoria.map((p) => p.categoria), ...setor.poiMaisProximo.map((p) => p.categoria)]),
   ]);
   const km = formatNumero(raioMetros / 1000, raioMetros % 1000 === 0 ? 0 : 1);
 
@@ -208,135 +255,168 @@ export function RelatorioPontoUnico({ ponto, setor, raioMetros, fatorCorrecao = 
         <p className="text-sm font-medium">{ponto.rotulo}</p>
         <p className="text-xs text-muted-foreground">
           {setor.nmMunicipio} · {setor.uf} · {setor.regiao}
+          <span className="text-muted-foreground/60"> · setor {setor.cdSetor}</span>
         </p>
       </div>
 
-      {/* Cartão de destaque: a renda é a primeira coisa lida, não uma linha entre outras. */}
-      <section className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-4">
-        <div>
-          <p className="text-3xl font-bold tabular-nums">{formatMoeda(rendaMedia)}</p>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            Renda média domiciliar
-            <InfoIcone texto="Renda média dos domicílios do setor censitário, corrigida do valor bruto do Censo 2022 pra hoje pelo IPCA acumulado." />
-          </span>
+      {semDado && (
+        // Setor sem renda/população publicadas: explica em vez de mostrar uma parede de "—".
+        <Alert className="border-amber-500/40 bg-amber-500/10">
+          <CircleAlert className="text-amber-600" />
+          <AlertTitle>{explicacaoSemDado(semDado, setor.domiciliosOcupados).titulo}</AlertTitle>
+          <AlertDescription>{explicacaoSemDado(semDado, setor.domiciliosOcupados).texto}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Resumo: as perguntas que o corretor faz primeiro, respondidas antes de qualquer detalhe.
+          Todos os indicadores no mesmo formato (rótulo + "i" em cima, valor, detalhe embaixo). */}
+      <section className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold">Resumo do setor</h3>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {!semDado && (
+            <Indicador
+              rotulo={ROTULO_RENDA_MEDIA}
+              info={INFO_RENDA_MEDIA}
+              valor={formatMoeda(rendaMedia)}
+              detalhe={`Mediana ${formatMoeda(rendaMediana)}`}
+              infoDetalhe={INFO_RENDA_MEDIANA}
+            />
+          )}
+          {!semDado && (
+            <Indicador
+              rotulo="Classe econômica"
+              info="Classe ABEP (A1 a DE) pela renda média corrigida."
+              valor={
+                classe ? (
+                  <Badge className="h-6 px-2.5 text-sm text-white" style={{ backgroundColor: classe.cor }}>
+                    {classe.label}
+                  </Badge>
+                ) : (
+                  "—"
+                )
+              }
+            />
+          )}
+          {!semDado && (
+            <Indicador
+              rotulo="Homogeneidade da renda"
+              info="Se a renda é parecida entre os domicílios do setor. Coeficiente de variação abaixo de 0,5 = homogênea."
+              valor={homogeneidade ? homogeneidade.texto.replace("Renda ", "") : "—"}
+              corValor={homogeneidade?.cor}
+              detalhe={cv !== null ? `Coef. de variação ${formatNumero(cv, 2)}` : undefined}
+            />
+          )}
+          {!semDado && (
+            <Indicador
+              rotulo="Faixa etária predominante"
+              info="Faixa de idade com mais moradores."
+              valor={faixaPredominante ? `${faixaPredominante.faixa} anos` : "—"}
+              detalhe={
+                faixaPredominante?.percentual != null
+                  ? `${formatPercentual(faixaPredominante.percentual)} dos moradores`
+                  : undefined
+              }
+            />
+          )}
+          {!semDado && (
+            <Indicador
+              rotulo="População"
+              info="Moradores do setor no Censo 2022."
+              valor={formatNumero(setor.populacao)}
+              detalhe="moradores"
+            />
+          )}
+          {!semDado && (
+            <Indicador
+              rotulo="Tamanho médio da família"
+              info="Média de moradores por domicílio ocupado."
+              valor={
+                setor.tamanhoMedioFamilia === null ? "—" : `${formatNumero(setor.tamanhoMedioFamilia, 1)} pessoas`
+              }
+              detalhe="por domicílio"
+            />
+          )}
+          {!semDado && (
+            <Indicador
+              rotulo="Moradia predominante"
+              info="Tipo de domicílio mais comum: casa, condomínio, apartamento ou precária."
+              valor={domicilio?.rotulo ?? "—"}
+              detalhe={
+                domicilio?.percentual != null ? `${formatPercentual(domicilio.percentual)} dos domicílios` : undefined
+              }
+            />
+          )}
+          <Indicador
+            rotulo="Transporte mais próximo"
+            info="Distância do setor até o ponto de transporte público mais próximo (ônibus, metrô ou trem)."
+            valor={transporteMaisProximo ? formatDistancia(transporteMaisProximo.distanciaM) : "—"}
+            detalhe={transporteMaisProximo ? rotuloSubcategoria(transporteMaisProximo.subcategoria) : undefined}
+          />
+          <Indicador
+            rotulo="Domicílios ocupados"
+            info="Com morador no Censo. Uso ocasional = só temporada."
+            valor={formatNumero(setor.domiciliosOcupados)}
+            detalhe={`${formatNumero(setor.domiciliosVagos)} vagos · ${formatNumero(setor.domiciliosUsoOcasional)} ocasionais`}
+          />
         </div>
-        <div>
-          <p className="text-xl font-semibold tabular-nums">{formatMoeda(rendaMediana)}</p>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            Renda mediana
-            <InfoIcone texto="Valor que divide os domicílios do setor ao meio: metade tem renda maior, metade tem renda menor. Menos sensível a valores extremos do que a média. Também corrigida pelo IPCA acumulado." />
-          </span>
-        </div>
-        {classe && (
-          <span className="flex items-center gap-1">
-            <span
-              className="rounded-full px-3 py-1 text-sm font-semibold text-white"
-              style={{ backgroundColor: classe.cor }}
-            >
-              Classe {classe.label}
-            </span>
-            <InfoIcone texto="Classificação econômica ABEP (A1 a DE), calculada a partir da renda média do setor já corrigida pelo IPCA." />
-          </span>
-        )}
-        {homogeneidade && (
-          <span className="flex flex-col">
-            <span className="flex items-center gap-1 text-sm font-medium" style={{ color: homogeneidade.cor }}>
-              {homogeneidade.texto}
-              <InfoIcone texto="Leitura do coeficiente de variação da renda dentro do setor: quanto menor o coeficiente, mais parecida é a renda entre os domicílios. Aqui, abaixo de 0,5 é lido como homogênea." />
-            </span>
-            <span className="text-xs text-muted-foreground">
-              Coeficiente de variação: {formatNumero(cv, 2)}
-            </span>
-          </span>
-        )}
+        {!semDado && <p className="text-xs text-muted-foreground">Renda: IBGE, {fonteRenda(mesReferencia)}.</p>}
       </section>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {!semDado && (
+          <Estatistica
+           
+            rotulo="Densidade (hab/km²)"
+            valor={formatNumero(setor.densidadeHabKm2, 0)}
+            info="Moradores por km² de área do setor."
+          />
+        )}
         <Estatistica
-          rotulo="População total"
-          valor={formatNumero(setor.populacao)}
-          info="Total de pessoas residentes no setor censitário, segundo o Censo."
-        />
-        <Estatistica
-          rotulo="Densidade (hab/km²)"
-          valor={formatNumero(setor.densidadeHabKm2, 1)}
-          info="População do setor dividida pela sua área, em habitantes por km²."
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Estatistica
-          tamanho="pequeno"
-          rotulo="Domicílios ocupados"
-          valor={formatNumero(setor.domiciliosOcupados)}
-          info="Domicílios particulares que tinham morador(es) no dia da coleta do Censo."
-        />
-        <Estatistica
-          tamanho="pequeno"
-          rotulo="Uso ocasional"
-          valor={formatNumero(setor.domiciliosUsoOcasional)}
-          info="Domicílios usados só em temporada (ex.: casa de praia ou campo), sem morador fixo."
-        />
-        <Estatistica
-          tamanho="pequeno"
-          rotulo="Vagos"
-          valor={formatNumero(setor.domiciliosVagos)}
-          info="Domicílios sem morador e sem uso ocasional no dia da coleta do Censo."
-        />
-        <Estatistica
-          tamanho="pequeno"
+         
           rotulo="Área (km²)"
           valor={formatNumero(setor.areaKm2, 2)}
-          info="Área territorial do setor censitário, em km²."
+          info="Área do setor censitário."
         />
         <Estatistica
-          tamanho="pequeno"
-          rotulo="Tamanho médio da família"
-          valor={formatNumero(setor.tamanhoMedioFamilia, 2)}
-          info="Número médio de moradores por domicílio ocupado no setor."
-        />
-        <Estatistica
-          tamanho="pequeno"
+         
           rotulo="Situação"
           valor={setor.situacao ?? "—"}
-          info="Classificação do setor pelo IBGE: urbano ou rural."
+          info="Classificação do IBGE: urbano ou rural."
         />
         <Estatistica
-          tamanho="pequeno"
+         
           rotulo="Alfabetização (15+)"
           valor={pctAlfabetizados === null ? "—" : formatPercentual(pctAlfabetizados)}
-          info="% de pessoas de 15 anos ou mais que sabem ler e escrever, entre as que tiveram esse dado declarado."
+          info="% de 15 anos ou mais que leem e escrevem. 'Não divulgado' = sigilo do IBGE."
         />
       </div>
 
-      {!setor.demografia ? (
+      {/* Setor sem dado: o aviso do topo já explica; os blocos de moradores e saneamento
+          sairiam todos vazios, então não aparecem (entorno e POIs continuam válidos). */}
+      {semDado ? null : !setor.demografia || totalSexo === 0 ? (
         <Cartao titulo="Perfil demográfico">
-          <p className="text-sm text-muted-foreground">Sem dados demográficos publicados para este setor.</p>
+          <p className="text-sm text-muted-foreground">
+            O IBGE não publicou o perfil demográfico (sexo e idade) deste setor.
+          </p>
         </Cartao>
       ) : (
         <>
           <Cartao titulo="Sexo" info="Distribuição da população do setor por sexo declarado ao Censo.">
-            <div className="flex h-6 overflow-hidden rounded-full bg-muted text-xs font-medium text-white">
-              {pctMasculina !== null && (
-                <div
-                  className="flex items-center justify-start pl-2"
-                  style={{ width: `${pctMasculina}%`, backgroundColor: COR_MASCULINA }}
-                >
-                  {pctMasculina >= 12 && formatPercentual(pctMasculina)}
-                </div>
-              )}
-              {pctFeminina !== null && (
-                <div
-                  className="flex items-center justify-end pr-2"
-                  style={{ width: `${pctFeminina}%`, backgroundColor: COR_FEMININA }}
-                >
-                  {pctFeminina >= 12 && formatPercentual(pctFeminina)}
-                </div>
-              )}
-            </div>
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Masculino</span>
-              <span>Feminino</span>
+            {/* Progress do shadcn: preenchimento = masculino, trilho = feminino. */}
+            <Progress
+              value={pctMasculina ?? 0}
+              className="**:data-[slot=progress-indicator]:bg-(--cor-m) **:data-[slot=progress-track]:h-3 **:data-[slot=progress-track]:bg-(--cor-f)"
+              style={{ "--cor-m": COR_MASCULINA, "--cor-f": COR_FEMININA } as CSSProperties}
+            />
+            <div className="flex justify-between text-xs">
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-full" style={{ backgroundColor: COR_MASCULINA }} />
+                Masculino <strong className="font-semibold tabular-nums">{pctMasculina === null ? "—" : formatPercentual(pctMasculina)}</strong>
+              </span>
+              <span className="flex items-center gap-1.5">
+                Feminino <strong className="font-semibold tabular-nums">{pctFeminina === null ? "—" : formatPercentual(pctFeminina)}</strong>
+                <span className="size-2 rounded-full" style={{ backgroundColor: COR_FEMININA }} />
+              </span>
             </div>
           </Cartao>
 
@@ -346,24 +426,29 @@ export function RelatorioPontoUnico({ ponto, setor, raioMetros, fatorCorrecao = 
           >
             {faixaPredominante && (
               <p className="text-sm">
-                Faixa predominante:{" "}
-                <strong className="font-semibold">{faixaPredominante.faixa} anos</strong>
+                Faixa predominante: <strong className="font-semibold">{faixaPredominante.faixa} anos</strong>
                 {faixaPredominante.percentual !== null && (
-                  <span className="text-muted-foreground"> · {formatPercentual(faixaPredominante.percentual)} da população</span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {formatPercentual(faixaPredominante.percentual)} da população
+                  </span>
                 )}
               </p>
             )}
-            <div className="flex flex-col">
+            <div className="flex flex-col gap-1">
               {setor.demografia.piramideEtaria.map((faixa) => {
                 const percentual = pct(faixa.total, setor.populacao) ?? 0;
                 const largura = maiorFatiaPiramide > 0 ? (percentual / maiorFatiaPiramide) * 100 : 0;
+                const predominante = faixa.faixa === faixaPredominante?.faixa;
                 return (
-                  <div key={faixa.faixa} className="flex items-center gap-2 py-0.5 text-xs">
-                    <span className="w-14 shrink-0 text-muted-foreground">{faixa.faixa}</span>
-                    <div className="h-3 flex-1 rounded-sm bg-muted">
-                      <div className="h-full rounded-sm bg-primary/70" style={{ width: `${largura}%` }} />
-                    </div>
-                    <span className="w-24 shrink-0 text-right tabular-nums">
+                  <div key={faixa.faixa} className="grid grid-cols-[3.5rem_1fr_6rem] items-center gap-2 text-xs">
+                    <span className={predominante ? "font-semibold" : "text-muted-foreground"}>{faixa.faixa}</span>
+                    <Progress
+                      value={largura}
+                      className={`${CLASSE_BARRA} ${predominante ? "" : "**:data-[slot=progress-indicator]:opacity-50"}`}
+                      style={estiloCorBarra("var(--primary)", "0.75rem")}
+                    />
+                    <span className={`text-right tabular-nums ${predominante ? "font-semibold" : ""}`}>
                       {formatNumero(faixa.total)} ({formatPercentual(percentual)})
                     </span>
                   </div>
@@ -372,63 +457,60 @@ export function RelatorioPontoUnico({ ponto, setor, raioMetros, fatorCorrecao = 
             </div>
           </Cartao>
 
+          {/* Raça/cor fora da tela por enquanto (ver comentário no topo do componente).
           <Cartao titulo="Raça / cor" info="Distribuição da população do setor por raça/cor autodeclarada ao Censo.">
-            <table className="w-full text-sm">
-              <tbody>
+            (ao reativar, importar Table/TableBody/TableRow/TableCell de "@/components/ui/table")
+            <Table>
+              <TableBody>
                 {fatiasRaca.map((fatia) => (
-                  <tr key={fatia.rotulo} className="border-b border-border last:border-0">
-                    <td className="py-1.5 text-muted-foreground">{fatia.rotulo}</td>
-                    <td className="py-1.5 text-right tabular-nums">
+                  <TableRow key={fatia.rotulo}>
+                    <TableCell className="text-muted-foreground">{fatia.rotulo}</TableCell>
+                    <TableCell className="text-right tabular-nums">
                       {fatia.percentual === null ? "—" : formatPercentual(fatia.percentual)}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </Cartao>
+          */}
         </>
       )}
 
       {!setor.vulnerabilidade ? (
         <Cartao titulo="Vulnerabilidade e infraestrutura">
-          <p className="text-sm text-muted-foreground">Sem dados de saneamento/entorno publicados para este setor.</p>
+          <p className="text-sm text-muted-foreground">
+            O IBGE não publicou saneamento nem entorno urbano para este setor.
+          </p>
         </Cartao>
       ) : (
         <>
-          <Cartao
-            titulo="Saneamento"
-            info="% calculado sobre os domicílios ocupados do setor (com morador no dia do Censo)."
-          >
-            <BarraProgresso
-              rotulo="Água da rede geral"
-              info="% dos domicílios ocupados abastecidos pela rede geral de distribuição de água."
-              percentual={pct(setor.vulnerabilidade.saneamento.aguaRede, setor.domiciliosOcupados)}
-            />
-            <BarraProgresso
-              rotulo="Esgoto na rede"
-              info="% dos domicílios ocupados com esgotamento sanitário ligado à rede coletora."
-              percentual={pct(setor.vulnerabilidade.saneamento.esgotoRede, setor.domiciliosOcupados)}
-            />
-            <BarraProgresso
-              rotulo="Lixo coletado"
-              info="% dos domicílios ocupados com coleta de lixo direta ou indireta."
-              percentual={pct(setor.vulnerabilidade.saneamento.lixoColetado, setor.domiciliosOcupados)}
-            />
-            <BarraProgresso
-              rotulo="Banheiro exclusivo"
-              info="% dos domicílios ocupados com banheiro de uso exclusivo do próprio domicílio."
-              percentual={pct(setor.vulnerabilidade.banheiro.com, setor.domiciliosOcupados)}
-            />
-          </Cartao>
+          {!semDado && (
+            <Cartao
+              titulo="Saneamento"
+              info="% calculado sobre os domicílios ocupados do setor (com morador no dia do Censo)."
+            >
+              <BarraProgresso
+                rotulo="Água da rede geral"
+                info="% dos domicílios ocupados abastecidos pela rede geral de distribuição de água."
+                percentual={pct(setor.vulnerabilidade.saneamento.aguaRede, setor.domiciliosOcupados)}
+              />
+              <BarraProgresso
+                rotulo="Esgoto na rede"
+                info="% dos domicílios ocupados com esgotamento sanitário ligado à rede coletora."
+                percentual={pct(setor.vulnerabilidade.saneamento.esgotoRede, setor.domiciliosOcupados)}
+              />
+              <BarraProgresso
+                rotulo="Lixo coletado"
+                info="% dos domicílios ocupados com coleta de lixo direta ou indireta."
+                percentual={pct(setor.vulnerabilidade.saneamento.lixoColetado, setor.domiciliosOcupados)}
+              />
+            </Cartao>
+          )}
 
           <Cartao
             titulo="Entorno urbano"
-            info="% calculado sobre as faces de quadra do setor — só é publicado pelo IBGE para setores urbanos."
-            nota={
-              entorno
-                ? undefined
-                : "Não se aplica: entorno urbano só é publicado para setores urbanos, e este é rural."
-            }
+            info="% calculado sobre as faces de quadra do setor — o IBGE só faz esse levantamento em setores urbanos."
           >
             {entorno ? (
               <>
@@ -464,8 +546,9 @@ export function RelatorioPontoUnico({ ponto, setor, raioMetros, fatorCorrecao = 
                 />
                 <BarraProgresso
                   rotulo="Obstáculo na calçada"
-                  info="% das faces de quadra do setor cuja calçada tem algum obstáculo à circulação de pedestres."
+                  info="% das faces de quadra do setor cuja calçada tem algum obstáculo à circulação de pedestres. Aqui, quanto MENOR, melhor."
                   percentual={pct(entorno.comObstaculo, entorno.facesTotal)}
+                  inverso
                 />
                 <BarraProgresso
                   rotulo="Rampa para cadeirante"
@@ -474,12 +557,18 @@ export function RelatorioPontoUnico({ ponto, setor, raioMetros, fatorCorrecao = 
                 />
                 <BarraProgresso
                   rotulo="Sem arborização"
-                  info="% das faces de quadra do setor sem nenhuma árvore."
+                  info="% das faces de quadra do setor sem nenhuma árvore. Aqui, quanto MENOR, melhor."
                   percentual={pct(entorno.semArvores, entorno.facesTotal)}
+                  inverso
                 />
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">—</p>
+              // Sem entorno não quer dizer rural: setor urbano em sigilo também vem sem.
+              <p className="text-sm text-muted-foreground">
+                {setor.situacao?.toLowerCase().startsWith("rural")
+                  ? "Não se aplica: o IBGE só levanta o entorno (faces de quadra) em setores urbanos, e este é rural."
+                  : "O IBGE não publicou o levantamento de entorno (faces de quadra) para este setor."}
+              </p>
             )}
           </Cartao>
         </>
@@ -500,11 +589,8 @@ export function RelatorioPontoUnico({ ponto, setor, raioMetros, fatorCorrecao = 
                 .reduce((soma, p) => soma + p.total, 0);
               const proximo = setor.poiMaisProximo.find((p) => p.categoria === categoria);
               return (
-                <span
-                  key={categoria}
-                  className="flex items-center gap-2 rounded-full border border-border bg-muted/60 py-1.5 pr-3 pl-2 text-xs"
-                >
-                  <Icone className="size-3.5 text-muted-foreground" />
+                <Badge key={categoria} variant="outline" className="h-7 gap-2 px-3 font-normal">
+                  <Icone className="text-muted-foreground" />
                   <span className="font-medium">{rotuloCategoria(categoria)}</span>
                   <span className="tabular-nums">{formatNumero(total)}</span>
                   {proximo && (
@@ -512,7 +598,7 @@ export function RelatorioPontoUnico({ ponto, setor, raioMetros, fatorCorrecao = 
                       · mais próximo {formatDistancia(proximo.distanciaM)} ({rotuloSubcategoria(proximo.subcategoria)})
                     </span>
                   )}
-                </span>
+                </Badge>
               );
             })}
           </div>
