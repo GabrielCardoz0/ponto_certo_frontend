@@ -53,7 +53,7 @@ export function App() {
     localizacao: Localizacao,
     rotulo: string | undefined,
     voar: boolean,
-    substituir = false
+    substituir = false,
   ) {
     if (!substituir && pontos.length >= MAX_PONTOS) return;
     if (pontos.some((p) => p.setor.cdSetor === cdSetor)) {
@@ -70,8 +70,8 @@ export function App() {
         substituir && atual.length > 0
           ? [...atual.slice(0, -1), novo]
           : atual.length >= MAX_PONTOS || atual.some((p) => p.setor.cdSetor === setor.cdSetor)
-          ? atual
-          : [...atual, novo]
+            ? atual
+            : [...atual, novo],
       );
       setModoAdicionar(false);
       if (voar) {
@@ -119,7 +119,7 @@ export function App() {
   const setoresSelecionados = pontos.map((p) => p.setor.cdSetor);
   const pontosNoMapa = useMemo(
     () => pontos.map((p, i) => ({ cdSetor: p.setor.cdSetor, numero: i + 1, localizacao: p.localizacao })),
-    [pontos]
+    [pontos],
   );
 
   // Guarda no client além do 403 do backend: se o papel não for admin (ex: trocado no
@@ -147,7 +147,10 @@ export function App() {
           motivoNaoPodeAdicionar={motivoNaoPodeAdicionar}
           onAdicionarRegiao={() => setModoAdicionar(true)}
         />
-        <main className="relative min-w-0 flex-1">
+        <main
+          data-painel={pontos.length > 0 || carregando ? "aberto" : "fechado"}
+          className="relative min-w-0 flex-1 overflow-hidden [&_.maplibregl-ctrl-top-right]:transition-transform [&_.maplibregl-ctrl-top-right]:duration-500 [&_.maplibregl-ctrl-top-right]:ease-[cubic-bezier(0.22,1,0.36,1)] data-[painel=aberto]:[&_.maplibregl-ctrl-top-right]:-translate-x-70"
+        >
           <MapView
             rendaCampo={rendaCampo}
             onSelectSetor={handleSelectFromMap}
@@ -182,19 +185,19 @@ export function App() {
               </AlertAction>
             </Alert>
           )}
+          <DetailPanel
+            pontos={pontos}
+            maxPontos={MAX_PONTOS}
+            carregando={carregando}
+            modoAdicionar={modoAdicionar}
+            onAdicionarRegiao={() => setModoAdicionar(true)}
+            onCancelarAdicao={() => setModoAdicionar(false)}
+            onRemover={handleRemover}
+            onLimpar={handleLimpar}
+            fatorCorrecao={fatorCorrecao.fatorAcumulado}
+            rendaOpacidade={rendaOpacidade}
+          />
         </main>
-        <DetailPanel
-          pontos={pontos}
-          maxPontos={MAX_PONTOS}
-          carregando={carregando}
-          modoAdicionar={modoAdicionar}
-          onAdicionarRegiao={() => setModoAdicionar(true)}
-          onCancelarAdicao={() => setModoAdicionar(false)}
-          onRemover={handleRemover}
-          onLimpar={handleLimpar}
-          fatorCorrecao={fatorCorrecao.fatorAcumulado}
-          rendaOpacidade={rendaOpacidade}
-        />
       </div>
     </div>
   );
