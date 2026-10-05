@@ -54,17 +54,13 @@ export function DetailPanel({
       inert={!aberta}
       aria-hidden={!aberta}
       className={cn(
-        "shrink-0 overflow-hidden bg-background transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
-        aberta ? "w-70 border-l border-border" : "w-0"
+        // Sobreposto ao mapa e animado só por transform (compositor): animar a largura redimensionava
+        // o canvas do mapa a cada frame e travava.
+        "absolute inset-y-0 right-0 z-20 w-70 border-l border-border bg-background transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform",
+        aberta ? "translate-x-0 opacity-100" : "pointer-events-none translate-x-full opacity-0",
       )}
     >
-      {/* Largura fixa por dentro: o conteúdo não se espreme enquanto o aside cresce/encolhe. */}
-      <div
-        className={cn(
-          "flex h-full w-70 flex-col transition-opacity duration-300 ease-out",
-          aberta ? "opacity-100 delay-200" : "opacity-0"
-        )}
-      >
+      <div className="flex h-full w-70 flex-col">
         {pontosAtuais.length === 0 && carregando ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
